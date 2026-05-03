@@ -144,9 +144,19 @@ Stage 10 adds Connections foundation. For an existing database, apply:
 src/db/patches/007_integration_connections.sql
 ```
 
-The `integration_connections` table stores user-owned connection metadata only: provider, status, mode, safe metadata, and last checked time. It must not store raw API keys. The Connections UI shows Supabase, AI Provider, Market Data, Bybit, OKX, MetaTrader, TradingView, and Economic Calendar status in safe setup mode.
+The `integration_connections` table stores user-owned connection metadata only: provider, status, mode, safe metadata, and last checked time. It must not store raw API keys.
+
+Stage 10.1 separates user-facing trading connections from internal platform services:
+
+- `/connections` shows only exchange, broker, charting, market data, and future automation integrations.
+- Supabase is internal infrastructure, not a user trading connection.
+- AI Provider is platform-managed and uses local rules fallback when no server-side AI key is configured.
+- Economic Calendar is an internal data service used for calendar views and news-risk context.
+- `/system-status` shows internal service status for Supabase, AI Provider, Economic Calendar, and simulated engines without exposing secrets.
 
 Broker integrations are not live yet. Bybit and OKX are planned to start as read-only import connections before any execution features are considered. Never create exchange API keys with withdrawal permissions for TradeMind AI. Future API keys should be handled server-side or through a dedicated secrets workflow, not displayed in the UI.
+
+Trading execution is disabled. Exchange integrations will start as read-only imports for trade history, account analytics, and portfolio reconciliation. The future execution layer requires a separate safety stage with paper trading, confirm-to-execute, kill switch, and risk limits before any broker or exchange order endpoint is connected.
 
 ## Production Deployment
 

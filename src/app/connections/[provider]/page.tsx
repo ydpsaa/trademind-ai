@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, Bot, CalendarDays, Cable, Database, LineChart, Radio, ShieldCheck, WalletCards } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+import { ArrowLeft, Bot, CalendarDays, Cable, Database, LineChart, Radio, ShieldCheck, ShieldOff, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ConnectionStatusButton } from "@/components/connections/ConnectionStatusButton";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -22,7 +22,10 @@ const iconMap = {
   metatrader: Radio,
   tradingview: LineChart,
   "economic-calendar": CalendarDays,
+  "execution-layer": ShieldOff,
 } satisfies Record<IntegrationProvider, typeof Cable>;
+
+const internalProviders = new Set<IntegrationProvider>(["supabase", "ai-provider", "economic-calendar"]);
 
 function formatDateTime(value: string | null) {
   if (!value) return "Not checked";
@@ -153,6 +156,7 @@ export default async function ConnectionDetailPage({ params }: ConnectionDetailP
   const { provider: providerSlug } = await params;
   const provider = getProvider(providerSlug);
   if (!provider) notFound();
+  if (internalProviders.has(provider.provider)) redirect("/system-status");
 
   const context = await getConnectionRecord(provider.provider);
   const status = resolvedStatus(provider, context.record, context);

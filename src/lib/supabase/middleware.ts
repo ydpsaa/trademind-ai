@@ -11,6 +11,7 @@ const protectedRoutes = [
   "/signals",
   "/calendar",
   "/connections",
+  "/system-status",
   "/settings",
 ];
 

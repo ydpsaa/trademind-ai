@@ -6,7 +6,8 @@ export type IntegrationProvider =
   | "okx"
   | "metatrader"
   | "tradingview"
-  | "economic-calendar";
+  | "economic-calendar"
+  | "execution-layer";
 
 export type ConnectionStatus = "connected" | "fallback" | "simulated" | "not_connected" | "coming_soon" | "error";
 

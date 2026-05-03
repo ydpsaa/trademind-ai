@@ -32,7 +32,8 @@ async function getSignal(signalId: string) {
   return (data ?? null) as Signal | null;
 }
 
-function titleCase(value: string) {
+function titleCase(value: string | null | undefined) {
+  if (!value) return "N/A";
   return value.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
 
@@ -52,6 +53,17 @@ function SnapshotRow({ label, value }: { label: string; value: string }) {
       <span className="text-sm text-white">{value}</span>
     </div>
   );
+}
+
+function snapshotValue(snapshot: Signal["scanner_snapshot"], key: keyof NonNullable<Signal["scanner_snapshot"]>) {
+  const value = snapshot?.[key];
+  return typeof value === "string" ? titleCase(value) : "N/A";
+}
+
+function snapshotDetected(snapshot: Signal["scanner_snapshot"], key: keyof NonNullable<Signal["scanner_snapshot"]>) {
+  const value = snapshot?.[key];
+  if (typeof value !== "boolean") return "N/A";
+  return value ? "Detected" : "Not detected";
 }
 
 export default async function SignalDetailPage({ params }: SignalDetailPageProps) {
@@ -126,13 +138,13 @@ export default async function SignalDetailPage({ params }: SignalDetailPageProps
           {snapshot ? (
             <div className="mt-4 grid gap-2 md:grid-cols-2">
               <SnapshotRow label="Bias" value={titleCase(snapshot.bias)} />
-              <SnapshotRow label="Structure" value={titleCase(snapshot.structureState)} />
-              <SnapshotRow label="BOS" value={snapshot.bosDetected ? "Detected" : "Not detected"} />
-              <SnapshotRow label="CHoCH" value={snapshot.chochDetected ? "Detected" : "Not detected"} />
-              <SnapshotRow label="Liquidity Sweep" value={snapshot.liquiditySweepDetected ? "Detected" : "Not detected"} />
-              <SnapshotRow label="FVG" value={snapshot.fvgDetected ? "Detected" : "Not detected"} />
-              <SnapshotRow label="Order Block" value={snapshot.orderBlockDetected ? "Detected" : "Not detected"} />
-              <SnapshotRow label="Premium / Discount" value={titleCase(snapshot.premiumDiscountState)} />
+              <SnapshotRow label="Structure" value={snapshotValue(snapshot, "structureState")} />
+              <SnapshotRow label="BOS" value={snapshotDetected(snapshot, "bosDetected")} />
+              <SnapshotRow label="CHoCH" value={snapshotDetected(snapshot, "chochDetected")} />
+              <SnapshotRow label="Liquidity Sweep" value={snapshotDetected(snapshot, "liquiditySweepDetected")} />
+              <SnapshotRow label="FVG" value={snapshotDetected(snapshot, "fvgDetected")} />
+              <SnapshotRow label="Order Block" value={snapshotDetected(snapshot, "orderBlockDetected")} />
+              <SnapshotRow label="Premium / Discount" value={snapshotValue(snapshot, "premiumDiscountState")} />
             </div>
           ) : (
             <p className="mt-4 text-sm text-zinc-500">No scanner snapshot available.</p>

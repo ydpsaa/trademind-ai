@@ -95,7 +95,7 @@ export async function checkConnectionStatusAction(_state: ConnectionActionState,
     status = hasOpenAIKey() ? "connected" : "fallback";
     mode = hasOpenAIKey() ? "configured" : "fallback";
     metadata = {
-      openaiKeyPresent: hasOpenAIKey(),
+      aiKeyConfigured: hasOpenAIKey(),
       provider: process.env.AI_PROVIDER || "openai",
       model: configuredModel(),
     };

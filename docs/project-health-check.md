@@ -80,7 +80,7 @@ Run this checklist before deployment and after important changes.
 - `/connections/ai-provider` renders.
 - `/connections/bybit` renders.
 - Test Status works for Supabase.
-- Test Status works for AI Provider.
+- Test Status works for AI Service.
 - Test Status works for Economic Calendar.
 
 ## Security

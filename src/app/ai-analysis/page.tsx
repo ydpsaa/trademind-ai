@@ -37,7 +37,7 @@ export default async function AiAnalysisPage() {
   const reviews = await getAIReviews();
 
   return (
-    <AppShell title="AI Trade Analysis" subtitle="Rules-based trade coaching generated from your journal data.">
+    <AppShell title="AI Trade Analysis" subtitle="AI trading coach reviews generated from your journal data.">
       <div className="space-y-4">
         <GlassCard className="p-4 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -48,11 +48,11 @@ export default async function AiAnalysisPage() {
               <div>
                 <h2 className="text-xl font-semibold">AI Review Library</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-400">
-                  Latest generated reviews from the local Stage 4 rules engine. External AI providers are not connected yet.
+                  Latest AI reviews with safe local rules fallback when the AI service is not configured.
                 </p>
               </div>
             </div>
-            <StatusBadge tone="neutral">Rules-based</StatusBadge>
+            <StatusBadge tone="neutral">AI Review</StatusBadge>
           </div>
         </GlassCard>
 

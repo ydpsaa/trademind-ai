@@ -79,7 +79,7 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         mode: connected ? "configured" : "fallback",
         label: connected ? "connected" : "fallback",
         metadata: {
-          openaiKeyConfigured: connected,
+          aiKeyConfigured: connected,
           provider: process.env.AI_PROVIDER || "openai",
           model: process.env.OPENAI_MODEL || "local-rules",
         },

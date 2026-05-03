@@ -17,9 +17,9 @@ export const systemServiceProviders: ProviderCard[] = [
   },
   {
     provider: "ai-provider",
-    name: "AI Provider",
+    name: "AI Service",
     category: "Internal AI",
-    description: "OpenAI-compatible review generation with local rules fallback.",
+    description: "Platform-managed AI Review generation with local rules fallback.",
     purpose: "AI Trade Review",
     powers: ["Trade review summaries", "Execution recommendations", "Future strategy coaching"],
     mode: "fallback",

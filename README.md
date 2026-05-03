@@ -45,7 +45,9 @@ XAI_MODEL=
 MARKET_DATA_API_KEY=
 ```
 
-If `OPENAI_API_KEY` is configured, TradeMind AI attempts to generate trade reviews with the OpenAI-compatible API. If the key is missing, the model request fails, or the model returns invalid JSON, the app automatically falls back to the local rules-based review engine.
+If `OPENAI_API_KEY` is configured, TradeMind AI attempts to generate trade reviews with the configured AI service. If the key is missing, the model request fails, or the model returns invalid JSON, the app automatically falls back to the local rules-based review engine.
+
+Regenerating an AI review can use paid AI API credits when a real AI key is configured. Use one deliberate click per review and rely on the local rules fallback for development when needed.
 
 `XAI_API_KEY`, `XAI_MODEL`, and `MARKET_DATA_API_KEY` are placeholders for future stages. They are not required today.
 
@@ -150,9 +152,9 @@ Stage 10.1 separates user-facing trading connections from internal platform serv
 
 - `/connections` shows only exchange, broker, charting, market data, and future automation integrations.
 - Supabase is internal infrastructure, not a user trading connection.
-- AI Provider is platform-managed and uses local rules fallback when no server-side AI key is configured.
+- AI Service is platform-managed and uses local rules fallback when no server-side AI key is configured.
 - Economic Calendar is an internal data service used for calendar views and news-risk context.
-- `/system-status` shows internal service status for Supabase, AI Provider, Economic Calendar, and simulated engines without exposing secrets.
+- `/system-status` shows internal service status for Supabase, AI Service, Economic Calendar, and simulated engines without exposing secrets.
 
 Broker integrations are not live yet. Bybit and OKX are planned to start as read-only import connections before any execution features are considered. Never create exchange API keys with withdrawal permissions for TradeMind AI. Future API keys should be handled server-side or through a dedicated secrets workflow, not displayed in the UI.
 
@@ -202,7 +204,7 @@ Implemented:
 - Mock dashboard and product pages
 - Supabase-backed manual journal
 - Rules-based AI trade reviews
-- Optional OpenAI-compatible trade review generation with local fallback
+- Optional AI review generation with local fallback
 - Supabase-backed economic calendar foundation with sample/manual events
 - Supabase-backed Strategy Builder with reusable `rules_json` playbooks
 - Supabase-backed Backtest Lab foundation with simulated reports

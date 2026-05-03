@@ -29,10 +29,10 @@ const jsonShape = {
 export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, economicEvents = [], newsRiskLevel = "Low", newsRiskSummary = "No economic events were detected inside the configured risk window." }: TradeReviewPromptInput) {
   return [
     "You are an AI trading coach for TradeMind AI.",
-    "Analyze the trade using execution quality, risk management, psychology, and Smart Money / ICT concepts.",
+    "Analyze execution quality, not only result. Use Smart Money / ICT concepts and evaluate market structure, liquidity, risk, psychology, and news context.",
     "Do not guarantee profit. Do not provide financial advice. Evaluate the quality of the execution, not only the trade result.",
     "Use only the provided trade and journal data. If market data or news data is missing, state that the review is based only on journal/trade inputs.",
-    "If nearby economic events exist, evaluate news risk explicitly. If no events are available, state that news context is limited. Do not invent news.",
+    "If nearby economic events exist, evaluate news risk explicitly. If no events are available, state that news context is limited. Do not invent price action or news.",
     "Return valid JSON only. Do not wrap JSON in markdown. Scores must be numbers from 0 to 100.",
     "",
     "Required JSON shape:",

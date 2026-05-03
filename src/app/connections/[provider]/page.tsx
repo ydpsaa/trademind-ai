@@ -96,7 +96,7 @@ function resolvedStatus(provider: ProviderCard, record: IntegrationConnection | 
         status: connected ? ("connected" as const) : ("fallback" as const),
         mode: connected ? ("configured" as const) : ("fallback" as const),
         metadata: {
-          openaiKeyPresent: connected,
+          aiKeyConfigured: connected,
           provider: process.env.AI_PROVIDER || "openai",
           model: process.env.OPENAI_MODEL || "local-rules",
         },

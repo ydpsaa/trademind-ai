@@ -8,6 +8,7 @@ import { formatSupabaseError } from "@/lib/supabase/errors";
 import { getPeriodRange, parseJournalPeriod } from "@/lib/trading/periods";
 import { calculateTradeStats } from "@/lib/trading/stats";
 import type { JournalSource, Trade } from "@/lib/trading/types";
+import type { User } from "@supabase/supabase-js";
 
 interface JournalPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -26,6 +27,7 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
   const supabase = await createSupabaseServerClient();
   let trades: Trade[] = [];
   let error: string | null = null;
+  let user: User | null = null;
 
   if (!supabase) {
     error = "Supabase is not configured.";
@@ -35,13 +37,15 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
     if (userError || !userData.user) {
       error = "You must be signed in to view your journal.";
     } else {
+      user = userData.user;
       let query = supabase
         .from("trades")
-        .select("*, trade_journal_entries(*)")
+        .select("id,user_id,trading_account_id,source,symbol,market_type,direction,entry_price,exit_price,stop_loss,take_profit,position_size,risk_percent,rr,pnl,fees,result,session,strategy_id,opened_at,closed_at,created_at,updated_at,trade_journal_entries(id,trade_id,user_id,reason_for_entry,emotion_before,emotion_after,screenshot_url,notes_before,notes_after,mistake_tags,setup_tags,created_at,updated_at)")
         .eq("user_id", userData.user.id)
         .gte("opened_at", range.startIso)
         .lte("opened_at", range.endIso)
-        .order("opened_at", { ascending: false });
+        .order("opened_at", { ascending: false })
+        .limit(250);
 
       if (source !== "all") {
         query = query.eq("source", source);
@@ -59,7 +63,7 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
   const stats = calculateTradeStats(trades);
 
   return (
-    <AppShell title="Journal" subtitle="Track your trades, performance, and execution quality.">
+    <AppShell title="Journal" subtitle="Track your trades, performance, and execution quality." user={user}>
       <div className="space-y-4">
         <JournalControls period={period} source={source} />
         {params.created ? (

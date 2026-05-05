@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { createManualTradeAction, type TradeActionState } from "@/app/journal/actions";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { emotionLabels } from "@/lib/psychology/emotions";
+import { emotionValues } from "@/lib/psychology/types";
+import type { TradingRule } from "@/lib/rules/types";
 
 const initialState: TradeActionState = {};
 
@@ -22,8 +25,10 @@ function FormSection({ title, subtitle, children }: { title: string; subtitle: s
   );
 }
 
-export function AddTradeForm() {
+export function AddTradeForm({ rules = [] }: { rules?: TradingRule[] }) {
   const [state, formAction, pending] = useActionState(createManualTradeAction, initialState);
+  const manualRules = rules.filter((rule) => rule.type !== "auto_check");
+  const autoRules = rules.filter((rule) => rule.type === "auto_check");
 
   return (
     <GlassCard className="p-4 md:p-6">
@@ -142,6 +147,70 @@ export function AddTradeForm() {
               <input name="mistake_tags" placeholder="early entry, news risk" className={fieldClass} />
             </label>
           </div>
+        </FormSection>
+
+        <FormSection title="Psychology" subtitle="Capture the decision state behind the entry for future discipline scoring.">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <label className="block text-sm">
+              <span className="text-zinc-400">Emotion Before</span>
+              <select name="emotion_before" className={fieldClass} defaultValue="">
+                <option value="">Select emotion</option>
+                {emotionValues.map((emotion) => (
+                  <option key={emotion} value={emotion}>{emotionLabels[emotion]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm">
+              <span className="text-zinc-400">Confidence Level</span>
+              <input name="confidence_level" type="number" min="1" max="10" inputMode="numeric" placeholder="1-10" className={fieldClass} />
+            </label>
+            <label className="block text-sm">
+              <span className="text-zinc-400">Stress Level</span>
+              <input name="stress_level" type="number" min="1" max="10" inputMode="numeric" placeholder="1-10" className={fieldClass} />
+            </label>
+            <label className="block text-sm">
+              <span className="text-zinc-400">FOMO Score</span>
+              <input name="fomo_score" type="number" min="1" max="10" inputMode="numeric" placeholder="1-10" className={fieldClass} />
+            </label>
+          </div>
+          <label className="mt-4 block text-sm">
+            <span className="text-zinc-400">Discipline Note</span>
+            <textarea name="discipline_note" className={textareaClass} placeholder="What was your behavioral state before entering?" />
+          </label>
+        </FormSection>
+
+        <FormSection title="Pre-Trade Checklist" subtitle="Check active rules before saving the trade. Auto-checks are evaluated on submit.">
+          {rules.length ? (
+            <div className="space-y-4">
+              {manualRules.length ? (
+                <div className="space-y-3">
+                  {manualRules.map((rule) => (
+                    <div key={rule.id} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                      <label className="flex items-start gap-3 text-sm">
+                        <input type="checkbox" name={`rule_${rule.id}`} value="passed" className="mt-1 h-4 w-4 accent-white" />
+                        <span className="text-zinc-300">{rule.text}</span>
+                      </label>
+                      <input name={`rule_reason_${rule.id}`} placeholder="Violation reason if not passed" className={`${fieldClass} h-10 text-sm`} />
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {autoRules.length ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {autoRules.map((rule) => (
+                    <div key={rule.id} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                      <div className="mb-2 w-fit rounded-md bg-amber-300/10 px-2 py-1 text-xs text-amber-200">Auto-check</div>
+                      <div className="text-sm text-zinc-300">{rule.text}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-400">
+              No active trading rules yet. <Link href="/rules" className="text-white underline underline-offset-4">Create rules</Link>
+            </div>
+          )}
         </FormSection>
 
         {state.error ? <div className="rounded-xl border border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-200">{state.error}</div> : null}

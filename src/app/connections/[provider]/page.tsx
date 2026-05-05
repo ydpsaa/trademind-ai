@@ -5,9 +5,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ConnectionStatusButton } from "@/components/connections/ConnectionStatusButton";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { isAdminUser } from "@/lib/auth/admin";
 import { connectionStatusTone, deriveRuntimeStatus, getProvider } from "@/lib/connections/connection-status";
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, IntegrationProvider, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 
 interface ConnectionDetailPageProps {
   params: Promise<{ provider: string }>;
@@ -54,13 +56,13 @@ function patchMessage(message: string) {
 
 async function getConnectionRecord(provider: IntegrationProvider) {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { record: null, error: "Supabase is not configured.", calendarReadable: false, sessionPresent: false };
+  if (!supabase) return { record: null, error: "Supabase is not configured.", calendarReadable: false, sessionPresent: false, user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { record: null, error: "You must be signed in to view connection details.", calendarReadable: false, sessionPresent: false };
+  if (userError || !userData.user) return { record: null, error: "You must be signed in to view connection details.", calendarReadable: false, sessionPresent: false, user: null };
 
   const [connectionResult, calendarResult] = await Promise.all([
-    supabase.from("integration_connections").select("*").eq("user_id", userData.user.id).eq("provider", provider).maybeSingle(),
+    supabase.from("integration_connections").select("id,user_id,provider,status,mode,display_name,metadata,last_checked_at,created_at,updated_at").eq("user_id", userData.user.id).eq("provider", provider).maybeSingle(),
     supabase.from("economic_events").select("id", { count: "exact", head: true }),
   ]);
 
@@ -69,6 +71,7 @@ async function getConnectionRecord(provider: IntegrationProvider) {
     error: connectionResult.error ? patchMessage(connectionResult.error.message) : null,
     calendarReadable: !calendarResult.error,
     sessionPresent: true,
+    user: userData.user as User,
   };
 }
 
@@ -156,14 +159,39 @@ export default async function ConnectionDetailPage({ params }: ConnectionDetailP
   const { provider: providerSlug } = await params;
   const provider = getProvider(providerSlug);
   if (!provider) notFound();
-  if (internalProviders.has(provider.provider)) redirect("/system-status");
+  if (internalProviders.has(provider.provider)) {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) redirect("/login?next=/system-status");
+
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) redirect("/login?next=/system-status");
+    if (isAdminUser(userData.user)) redirect("/system-status");
+
+    return (
+      <AppShell title="Connections" subtitle="Trading integrations and setup guidance." user={userData.user}>
+        <GlassCard className="mx-auto max-w-2xl p-5 md:p-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-zinc-300" />
+            <h2 className="text-xl font-semibold text-white">Admin access required</h2>
+            <StatusBadge tone="neutral">Internal service</StatusBadge>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-zinc-400">
+            This is an internal platform service. System Status is available only for platform administrators.
+          </p>
+          <Link href="/dashboard" className="mt-5 inline-grid h-10 place-items-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/10">
+            Back to Dashboard
+          </Link>
+        </GlassCard>
+      </AppShell>
+    );
+  }
 
   const context = await getConnectionRecord(provider.provider);
   const status = resolvedStatus(provider, context.record, context);
   const Icon = iconMap[provider.provider];
 
   return (
-    <AppShell title={provider.name} subtitle="Connection details and safe setup guidance.">
+    <AppShell title={provider.name} subtitle="Connection details and safe setup guidance." user={context.user}>
       <div className="space-y-4">
         <GlassCard className="p-4 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">

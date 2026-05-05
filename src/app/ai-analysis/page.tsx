@@ -6,23 +6,24 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/trading/format";
 import type { AITradeReview } from "@/lib/trading/types";
+import type { User } from "@supabase/supabase-js";
 
 async function getAIReviews() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return [];
+  if (!supabase) return { reviews: [], user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return [];
+  if (userError || !userData.user) return { reviews: [], user: null };
 
   const { data, error } = await supabase
     .from("ai_trade_reviews")
-    .select("*, trades(*)")
+    .select("id,trade_id,user_id,total_score,structure_score,liquidity_score,ict_score,risk_score,news_score,psychology_score,summary,strengths,weaknesses,recommendations,generation_source,model,created_at,trades(id,user_id,trading_account_id,source,symbol,market_type,direction,entry_price,exit_price,stop_loss,take_profit,position_size,risk_percent,rr,pnl,fees,result,session,strategy_id,opened_at,closed_at,created_at,updated_at)")
     .eq("user_id", userData.user.id)
     .order("created_at", { ascending: false })
     .limit(20);
 
-  if (error) return [];
-  return (data ?? []) as AITradeReview[];
+  if (error) return { reviews: [], user: userData.user as User };
+  return { reviews: (data ?? []) as unknown as AITradeReview[], user: userData.user as User };
 }
 
 function score(value: number | null) {
@@ -34,10 +35,10 @@ function sourceLabel(source: string | null | undefined) {
 }
 
 export default async function AiAnalysisPage() {
-  const reviews = await getAIReviews();
+  const { reviews, user } = await getAIReviews();
 
   return (
-    <AppShell title="AI Trade Analysis" subtitle="AI trading coach reviews generated from your journal data.">
+    <AppShell title="AI Trade Analysis" subtitle="AI trading coach reviews generated from your journal data." user={user}>
       <div className="space-y-4">
         <GlassCard className="p-4 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

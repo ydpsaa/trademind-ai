@@ -1,38 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, BarChart3, BellRing, Layers3, LineChart, Radar, ShieldAlert, Sparkles } from "lucide-react";
+import { ArrowLeft, BarChart3, LineChart, RadioTower, ShieldAlert, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { getBiasTone, getNewsRiskTone, getSetupTone } from "@/lib/scanner/filters";
-import { getMarketScanResult } from "@/lib/scanner/mock-scanner";
-import { scannerTimeframes, type ScannerTimeframe } from "@/lib/scanner/types";
-import { formatDateTime } from "@/lib/trading/format";
 
 interface MarketDetailPageProps {
   params: Promise<{ symbol: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-function titleCase(value: string) {
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function validTimeframe(value: string | string[] | undefined): ScannerTimeframe {
-  const normalized = Array.isArray(value) ? value[0] : value;
-  return scannerTimeframes.includes(normalized as ScannerTimeframe) ? (normalized as ScannerTimeframe) : "15m";
-}
-
-function CheckRow({ label, active }: { label: string; active: boolean }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-      <span className="text-sm text-zinc-300">{label}</span>
-      <StatusBadge tone={active ? "positive" : "neutral"}>{active ? "Detected" : "Not detected"}</StatusBadge>
-    </div>
-  );
 }
 
 function DetailStat({ label, value }: { label: string; value: string }) {
@@ -44,97 +17,49 @@ function DetailStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default async function MarketDetailPage({ params, searchParams }: MarketDetailPageProps) {
+export default async function MarketDetailPage({ params }: MarketDetailPageProps) {
   const { symbol } = await params;
-  const query = await searchParams;
-  const timeframe = validTimeframe(query.timeframe);
-  const result = getMarketScanResult(symbol.toUpperCase(), timeframe);
-  if (!result) notFound();
+  const normalizedSymbol = symbol.toUpperCase();
 
   return (
-    <AppShell title="Market Scanner" subtitle="Simulated symbol-level market structure view.">
+    <AppShell title="Market Scanner" subtitle="Symbol-level market state will activate after Market Data Feed integration.">
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
-            <Link href={`/market-scanner?timeframe=${result.timeframe}`} className="inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-white">
+            <Link href="/market-scanner" className="inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-white">
               <ArrowLeft className="h-4 w-4" />
               Back to Scanner
             </Link>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <h2 className="text-2xl font-semibold">{result.symbol}</h2>
-              <StatusBadge tone="neutral">{result.marketType}</StatusBadge>
-              <StatusBadge tone="neutral">Simulated Market State</StatusBadge>
+              <h2 className="text-2xl font-semibold">{normalizedSymbol}</h2>
+              <StatusBadge tone="neutral">Not Connected</StatusBadge>
             </div>
-            <p className="mt-2 text-sm text-zinc-500">Updated {formatDateTime(result.updatedAt)}. Real-time market data is not connected yet.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge tone={getBiasTone(result.bias)}>{titleCase(result.bias)}</StatusBadge>
-            <StatusBadge tone={getSetupTone(result.setupReadiness)}>{titleCase(result.setupReadiness)}</StatusBadge>
-            <StatusBadge tone={getNewsRiskTone(result.newsRiskLevel)}>News {titleCase(result.newsRiskLevel)}</StatusBadge>
+            <p className="mt-2 text-sm text-zinc-500">Real market data is not connected yet. This symbol will be available after Market Data Feed integration.</p>
           </div>
         </div>
+
+        <GlassCard className="p-5 md:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                <RadioTower className="h-4 w-4 text-zinc-400" />
+                Market Data Feed required
+              </div>
+              <h3 className="mt-3 text-2xl font-semibold tracking-tight text-white">No live structure, setup, confidence, or levels are available yet.</h3>
+              <p className="mt-3 text-sm leading-6 text-zinc-500">TradeMind AI no longer shows fake scanner values in production. Connect a real market data provider to activate this page.</p>
+            </div>
+            <Link href="/connections/market-data" className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/12 px-4 text-sm font-semibold text-white transition hover:bg-white/18">
+              View Market Data Setup
+            </Link>
+          </div>
+        </GlassCard>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <DetailStat label="Confidence" value={`${result.confidence}/100`} />
-          <DetailStat label="Timeframe" value={result.timeframe} />
-          <DetailStat label="Structure" value={titleCase(result.structureState)} />
-          <DetailStat label="PD State" value={titleCase(result.premiumDiscountState)} />
-          <DetailStat label="Setup" value={titleCase(result.setupReadiness)} />
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-2">
-          <GlassCard className="p-4 md:p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">SMC / ICT Checklist</h2>
-              <Layers3 className="h-4 w-4 text-zinc-500" />
-            </div>
-            <div className="mt-4 grid gap-2">
-              <CheckRow label="Break of Structure" active={result.bosDetected} />
-              <CheckRow label="Change of Character" active={result.chochDetected} />
-              <CheckRow label="Liquidity Sweep" active={result.liquiditySweepDetected} />
-              <CheckRow label="Fair Value Gap" active={result.fvgDetected} />
-              <CheckRow label="Order Block" active={result.orderBlockDetected} />
-            </div>
-          </GlassCard>
-
-          <GlassCard className="p-4 md:p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Key Levels</h2>
-              <Radar className="h-4 w-4 text-zinc-500" />
-            </div>
-            <div className="mt-4 grid gap-2">
-              {result.keyLevels.map((level) => (
-                <div key={level.label} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-                  <span className="text-sm text-zinc-400">{level.label}</span>
-                  <span className="font-mono text-sm text-white">{level.value}</span>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-
-          <GlassCard className="p-4 md:p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">News Risk</h2>
-              <ShieldAlert className="h-4 w-4 text-zinc-500" />
-            </div>
-            <p className="mt-3 text-sm leading-6 text-zinc-300">
-              Current simulated news risk is <span className="font-semibold text-white">{titleCase(result.newsRiskLevel)}</span>. This is local mock context only; economic calendar and live macro feeds are not connected to the scanner yet.
-            </p>
-          </GlassCard>
-
-          <GlassCard className="p-4 md:p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Warnings</h2>
-              <BellRing className="h-4 w-4 text-zinc-500" />
-            </div>
-            <div className="mt-4 space-y-2">
-              {result.warnings.map((warning) => (
-                <div key={warning} className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-zinc-300">
-                  {warning}
-                </div>
-              ))}
-            </div>
-          </GlassCard>
+          <DetailStat label="Confidence" value="0/100" />
+          <DetailStat label="Timeframe" value="Not connected" />
+          <DetailStat label="Structure" value="Not connected" />
+          <DetailStat label="PD State" value="Not connected" />
+          <DetailStat label="Setup" value="Not connected" />
         </div>
 
         <div className="grid gap-4 xl:grid-cols-2">
@@ -153,11 +78,12 @@ export default async function MarketDetailPage({ params, searchParams }: MarketD
 
           <GlassCard className="p-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Future Signal Engine</h2>
-              <Sparkles className="h-4 w-4 text-zinc-500" />
+              <h2 className="text-lg font-semibold">News and Signal Readiness</h2>
+              <ShieldAlert className="h-4 w-4 text-zinc-500" />
             </div>
-            <p className="mt-4 text-sm leading-6 text-zinc-300">{result.summary}</p>
+            <p className="mt-4 text-sm leading-6 text-zinc-300">Scanner news risk and signal readiness require verified market data and calendar context. No fake setup idea is shown here.</p>
             <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-zinc-500">
+              <Sparkles className="mr-2 inline h-4 w-4" />
               Signal engine will be connected after real market data integration.
             </div>
           </GlassCard>

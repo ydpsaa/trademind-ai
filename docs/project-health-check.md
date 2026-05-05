@@ -58,16 +58,16 @@ Run this checklist before deployment and after important changes.
 ## Market Scanner
 
 - `/market-scanner` renders.
-- Filters work.
-- Market cards render.
-- Symbol detail page opens.
-- Scanner is clearly marked simulated.
+- Filters render in disabled/readiness mode.
+- Market cards do not show fake scanner values.
+- Symbol detail page opens with real-data-not-connected state.
+- Scanner waits for Market Data Feed.
 
 ## Signals
 
 - `/signals` renders.
-- Generate Simulated Signals works when at least one strategy is active.
-- Signals save to Supabase.
+- Signal generation is disabled until Market Data Feed and strategy validation are connected.
+- Existing sandbox signal records are not shown as real signals.
 - Filters work.
 - Signal detail page opens.
 - Dismiss works.

@@ -73,6 +73,7 @@ export interface BacktestRow {
   max_drawdown: number | null;
   avg_rr: number | null;
   report_json: BacktestReport | null;
+  engine_type?: string | null;
   created_at: string | null;
   strategies?: { name: string | null } | null;
 }

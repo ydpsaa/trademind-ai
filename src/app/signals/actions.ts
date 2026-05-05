@@ -28,12 +28,16 @@ export async function generateSimulatedSignalsAction(_state: SignalActionState, 
   void _state;
   void _formData;
 
+  if (process.env.ENABLE_SIGNAL_SANDBOX !== "true") {
+    return { error: "Signal sandbox is disabled until Market Data Feed integration is connected." };
+  }
+
   const context = await currentUserClient();
   if ("error" in context) return { error: context.error };
 
   const { data: strategies, error: strategyError } = await context.supabase
     .from("strategies")
-    .select("*")
+    .select("id,user_id,name,description,rules_json,is_active,created_at,updated_at")
     .eq("user_id", context.user.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false });

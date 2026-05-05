@@ -92,6 +92,7 @@ For an existing Supabase database, apply SQL in this order:
 5. `src/db/patches/004_backtest_lab.sql`
 6. `src/db/patches/006_signals.sql`
 7. `src/db/patches/007_integration_connections.sql`
+8. `src/db/patches/008_product_data_model_upgrade.sql`
 
 Stage 4.1 adds optional AI review metadata columns. For an existing database, apply this patch in Supabase SQL Editor:
 
@@ -121,16 +122,16 @@ Stage 7 adds Backtest Lab foundation. For an existing database, apply this optio
 src/db/patches/004_backtest_lab.sql
 ```
 
-Backtest Lab currently uses a deterministic simulated engine stored in the `backtests` table. The result report is saved in `backtests.report_json` with equity curve points, simulated trades, warnings, strategy snapshot, and input settings. This is not real historical market performance; real market data integration will come later.
+Backtest Lab is real-data-ready. Historical market data is required before production backtests are presented as real performance. Old simulated foundation rows may remain in `backtests` as sandbox history, but production dashboard previews do not treat them as real results.
 
-Stage 8 adds Market Scanner foundation. The scanner is local and simulated for now:
+Stage 8 adds Market Scanner foundation. After Stage 0.0.2, production scanner output is disabled until Market Data Feed is connected:
 
 - default watchlist: XAUUSD, EURUSD, GBPUSD, NAS100, US30, BTCUSDT, ETHUSDT
-- filterable SMC/ICT checklist output
-- symbol detail pages under `/market-scanner/[symbol]`
-- dashboard market panel powered by scanner-style mock results
+- filter structure remains available
+- symbol detail pages under `/market-scanner/[symbol]` show a not-connected state
+- dashboard market panel shows Market Data Feed readiness only
 
-No external market data feed is connected yet. The scanner output is not real-time market data and should not be treated as a trading signal. Future stages will connect real market data and then use scanner context for Signals, Backtest Lab, and AI review context.
+No external market data feed is connected yet. Fake scanner confidence, setup readiness, prices, and market states are not shown in production UI. Future stages will connect real market data and then use scanner context for Signals, Backtest Lab, and AI review context.
 
 Stage 9 adds Signals foundation. For an existing database, apply:
 
@@ -138,7 +139,7 @@ Stage 9 adds Signals foundation. For an existing database, apply:
 src/db/patches/006_signals.sql
 ```
 
-Signals are simulated setup ideas generated from local scanner output and the current user's active strategies. They are stored in the `signals` table with RLS. No live market data, broker routing, or order execution is connected.
+Signals are real-data-ready. Production signal generation is disabled until Market Data Feed and strategy validation are connected. Existing simulated foundation records remain stored with RLS as sandbox records and are hidden from the default production Signals view.
 
 Stage 10 adds Connections foundation. For an existing database, apply:
 
@@ -154,11 +155,41 @@ Stage 10.1 separates user-facing trading connections from internal platform serv
 - Supabase is internal infrastructure, not a user trading connection.
 - AI Service is platform-managed and uses local rules fallback when no server-side AI key is configured.
 - Economic Calendar is an internal data service used for calendar views and news-risk context.
-- `/system-status` shows internal service status for Supabase, AI Service, Economic Calendar, and simulated engines without exposing secrets.
+- `/system-status` is admin-only and shows internal service status for Supabase, AI Service, Economic Calendar, and simulated engines without exposing secrets.
 
 Broker integrations are not live yet. Bybit and OKX are planned to start as read-only import connections before any execution features are considered. Never create exchange API keys with withdrawal permissions for TradeMind AI. Future API keys should be handled server-side or through a dedicated secrets workflow, not displayed in the UI.
 
 Trading execution is disabled. Exchange integrations will start as read-only imports for trade history, account analytics, and portfolio reconciliation. The future execution layer requires a separate safety stage with paper trading, confirm-to-execute, kill switch, and risk limits before any broker or exchange order endpoint is connected.
+
+Stage 12.0 adds the next product data model foundations for AI usage logs, psychology, discipline scoring, revenge event detection, pre-trade checklist rules, vector memory placeholders, plans, and usage tracking. See:
+
+```bash
+docs/product/product-data-model-upgrade.md
+```
+
+Stage 13 integrates AI usage logging and monthly usage counters for AI Trade Reviews. Local rules reviews cost `0`; real AI reviews can store provider/model, token usage when available, and rough estimated cost for future cost controls. Billing and hard limits are not enabled yet. See:
+
+```bash
+docs/product/ai-usage-cost-control.md
+```
+
+Stage 14 adds the Psychology Module foundation: emotion tracking on manual trades, a `/psychology` dashboard, Discipline Score preview, Revenge Index preview, and psychology context for AI Trade Review. See:
+
+```bash
+docs/product/psychology-module.md
+```
+
+Stage 15 adds saved Discipline Score snapshots and Revenge Index events. See:
+
+```bash
+docs/product/discipline-revenge-engine.md
+```
+
+Stage 16 adds the Pre-Trade Checklist foundation with manual and auto trading rules, rule checks on journal trades, rule adherence stats, and AI Review context. See:
+
+```bash
+docs/product/pre-trade-checklist.md
+```
 
 ## Production Deployment
 
@@ -201,15 +232,15 @@ Implemented:
 - Email/password login and registration
 - Supabase client helpers
 - Supabase database foundation schema
-- Mock dashboard and product pages
+- Real-data-ready dashboard and product pages
 - Supabase-backed manual journal
 - Rules-based AI trade reviews
 - Optional AI review generation with local fallback
 - Supabase-backed economic calendar foundation with sample/manual events
 - Supabase-backed Strategy Builder with reusable `rules_json` playbooks
-- Supabase-backed Backtest Lab foundation with simulated reports
-- Simulated Market Scanner foundation with SMC/ICT checklist output
-- Supabase-backed simulated Signals foundation
+- Supabase-backed Backtest Lab foundation, disabled for real performance until historical market data is connected
+- Market Scanner foundation, disabled until Market Data Feed is connected
+- Supabase-backed Signals foundation, disabled until Market Data Feed and strategy validation are connected
 - Supabase-backed Connections foundation for safe integration status metadata
 
 Not implemented yet:

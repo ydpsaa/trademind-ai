@@ -3,7 +3,7 @@ import type { ConnectionStatus, IntegrationConnection, IntegrationProvider, Prov
 export const systemServiceProviders: ProviderCard[] = [
   {
     provider: "supabase",
-    name: "Supabase",
+    name: "Database Service",
     category: "Internal Backend",
     description: "Authentication, Postgres database, RLS, and future storage.",
     purpose: "Auth, database, storage",
@@ -31,7 +31,7 @@ export const systemServiceProviders: ProviderCard[] = [
   },
   {
     provider: "economic-calendar",
-    name: "Economic Calendar",
+    name: "Calendar Data",
     category: "Internal Data",
     description: "Supabase-backed macro event table used for news risk context.",
     purpose: "News risk",
@@ -106,14 +106,14 @@ export const userConnectionProviders: ProviderCard[] = [
     provider: "market-data",
     name: "Market Data Feed",
     category: "Charts & Market Data",
-    description: "Future feed for candles, quotes, and historical market data. Simulated locally today.",
+    description: "Future feed for candles, quotes, and historical market data. Not connected today.",
     purpose: "Backtest candles, scanner inputs, and signal validation",
     powers: ["Backtest candles", "Scanner inputs", "Signal validation"],
-    mode: "simulated",
-    defaultStatus: "simulated",
+    mode: "safe_setup",
+    defaultStatus: "not_connected",
     actionLabel: "View Details",
     setupRequirements: ["Provider selection", "Server-side API key storage", "Rate-limit strategy"],
-    safetyNotes: ["Current scanner and backtest data are simulated.", "No external market data calls are made yet."],
+    safetyNotes: ["No external market data calls are made yet.", "Scanner, signals, and real backtests wait for this feed."],
     roadmap: ["Massive/Polygon style provider", "Historical candles", "Streaming quotes"],
   },
   {

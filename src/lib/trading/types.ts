@@ -1,3 +1,5 @@
+import type { TradePsychology } from "@/lib/psychology/types";
+
 export type JournalPeriod = "day" | "week" | "month" | "quarter" | "half-year" | "year";
 export type JournalSource = "all" | "manual" | "imported";
 
@@ -42,6 +44,7 @@ export interface Trade {
   created_at: string | null;
   updated_at: string | null;
   trade_journal_entries?: TradeJournalEntry[] | TradeJournalEntry | null;
+  trade_psychology?: TradePsychology[] | TradePsychology | null;
 }
 
 export interface AITradeReview {

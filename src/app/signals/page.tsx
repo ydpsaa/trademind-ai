@@ -1,17 +1,16 @@
 import Link from "next/link";
 import { AlertTriangle, Eye, Radio, ShieldAlert, Target, Zap } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { GenerateSignalsButton } from "@/components/signals/GenerateSignalsButton";
 import { SignalStatusActions } from "@/components/signals/SignalActions";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { generateSimulatedSignalsFormAction } from "@/app/signals/actions";
 import { scannerNewsRisks, scannerSymbols } from "@/lib/scanner/types";
 import { filterSignals, parseSignalFilters, signalDirectionTone, signalFilterHref, signalNewsTone, signalStatusTone } from "@/lib/signals/filters";
 import type { Signal } from "@/lib/signals/types";
 import { signalConfidenceBands, signalDirections, signalStatuses } from "@/lib/signals/types";
 import { formatNumber } from "@/lib/trading/format";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 
 interface SignalsPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -19,19 +18,20 @@ interface SignalsPageProps {
 
 async function getSignals() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { signals: [], error: "Supabase is not configured." };
+  if (!supabase) return { signals: [], error: "Supabase is not configured.", user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { signals: [], error: "You must be signed in to view signals." };
+  if (userError || !userData.user) return { signals: [], error: "You must be signed in to view signals.", user: null };
 
   const { data, error } = await supabase
     .from("signals")
-    .select("*, strategies(name)")
+    .select("id,user_id,strategy_id,symbol,market_type,direction,entry_zone,stop_loss,take_profit,confidence,reasoning,status,news_risk,setup_type,timeframe,engine_type,scanner_snapshot,created_at,updated_at,strategies(name)")
     .eq("user_id", userData.user.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(150);
 
-  if (error) return { signals: [], error: error.message };
-  return { signals: (data ?? []) as Signal[], error: null };
+  if (error) return { signals: [], error: error.message, user: userData.user as User };
+  return { signals: (data ?? []) as unknown as Signal[], error: null, user: userData.user as User };
 }
 
 function titleCase(value: string) {
@@ -73,7 +73,7 @@ function SignalCard({ signal }: { signal: Signal }) {
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold">{signal.symbol}</h2>
             <StatusBadge tone="neutral">{signal.market_type || "Market"}</StatusBadge>
-            <StatusBadge tone="neutral">{signal.engine_type || "simulated"}</StatusBadge>
+            <StatusBadge tone={signal.engine_type === "simulated" ? "neutral" : "positive"}>{signal.engine_type === "simulated" ? "Sandbox" : "Real Data"}</StatusBadge>
           </div>
           <p className="mt-1 text-xs text-zinc-500">{signal.strategies?.name || "Strategy snapshot"} / {signal.timeframe || "15m"}</p>
         </div>
@@ -120,14 +120,16 @@ function SignalCard({ signal }: { signal: Signal }) {
 export default async function SignalsPage({ searchParams }: SignalsPageProps) {
   const params = await searchParams;
   const filters = parseSignalFilters(params);
-  const { signals, error } = await getSignals();
-  const filtered = filterSignals(signals, filters);
-  const readyCount = signals.filter((signal) => signal.status === "ready").length;
-  const averageConfidence = signals.length ? Math.round(signals.reduce((sum, signal) => sum + Number(signal.confidence ?? 0), 0) / signals.length) : 0;
-  const highNewsCount = signals.filter((signal) => signal.news_risk === "high" || signal.news_risk === "extreme").length;
+  const { signals, error, user } = await getSignals();
+  const realSignals = signals.filter((signal) => signal.engine_type !== "simulated");
+  const sandboxCount = signals.length - realSignals.length;
+  const filtered = filterSignals(realSignals, filters);
+  const readyCount = realSignals.filter((signal) => signal.status === "ready").length;
+  const averageConfidence = realSignals.length ? Math.round(realSignals.reduce((sum, signal) => sum + Number(signal.confidence ?? 0), 0) / realSignals.length) : 0;
+  const highNewsCount = realSignals.filter((signal) => signal.news_risk === "high" || signal.news_risk === "extreme").length;
 
   return (
-    <AppShell title="Signals" subtitle="Review simulated setup ideas generated from your strategies and scanner conditions.">
+    <AppShell title="Signals" subtitle="Review setup ideas after Market Data Feed and Strategy validation are connected." user={user}>
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
@@ -135,25 +137,27 @@ export default async function SignalsPage({ searchParams }: SignalsPageProps) {
               <Radio className="h-5 w-5 text-zinc-300" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold">Simulated Signals</h2>
-              <p className="mt-1 text-sm text-zinc-500">Setup ideas for research and journaling. Real execution is not connected.</p>
+              <h2 className="text-xl font-semibold">Signals</h2>
+              <p className="mt-1 text-sm text-zinc-500">Real signal generation is not active yet.</p>
             </div>
           </div>
-          <StatusBadge tone="neutral">Simulated Signals</StatusBadge>
+          <StatusBadge tone="neutral">Not Connected</StatusBadge>
         </div>
 
         <GlassCard className="border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>Signals are simulated setup ideas for research and journaling only. Real market data and execution are not connected yet.</span>
+            <span>Signals require Market Data Feed and Strategy validation. Real market data and execution are not connected yet.</span>
           </div>
         </GlassCard>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <form action={generateSimulatedSignalsFormAction}>
-            <GenerateSignalsButton />
-          </form>
-          {params.generated ? <span className="text-sm text-emerald-300">Simulated signals generated.</span> : null}
+          <button disabled className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-zinc-500">
+            <Zap className="h-4 w-4" />
+            Signal Generation Disabled
+          </button>
+          {sandboxCount ? <span className="text-sm text-zinc-500">{sandboxCount} sandbox signal{sandboxCount === 1 ? "" : "s"} hidden from the real-data view.</span> : null}
+          {params.generated ? <span className="text-sm text-zinc-500">Sandbox generation is disabled in this view.</span> : null}
           {typeof params.error === "string" ? <span className="text-sm text-rose-300">{params.error}</span> : null}
           {error ? <span className="text-sm text-rose-300">{error}</span> : null}
         </div>
@@ -169,7 +173,7 @@ export default async function SignalsPage({ searchParams }: SignalsPageProps) {
         </GlassCard>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard label="Total Signals" value={String(signals.length)} icon={Radio} />
+          <SummaryCard label="Total Signals" value={String(realSignals.length)} icon={Radio} />
           <SummaryCard label="Ready Setups" value={String(readyCount)} icon={Target} />
           <SummaryCard label="Average Confidence" value={`${averageConfidence}%`} icon={Zap} />
           <SummaryCard label="High News Risk" value={String(highNewsCount)} icon={ShieldAlert} />
@@ -181,8 +185,8 @@ export default async function SignalsPage({ searchParams }: SignalsPageProps) {
           </div>
         ) : (
           <GlassCard className="p-8 text-center">
-            <h2 className="text-lg font-semibold">No signals found</h2>
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-zinc-500">Generate simulated signals or adjust the filters. Active strategies are required before generation.</p>
+            <h2 className="text-lg font-semibold">No real signals yet.</h2>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-zinc-500">Connect Market Data Feed and enable strategy validation before signal generation appears here.</p>
           </GlassCard>
         )}
       </div>

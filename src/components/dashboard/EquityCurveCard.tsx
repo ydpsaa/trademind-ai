@@ -1,69 +1,80 @@
-import { ChevronDown } from "lucide-react";
+import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { equityCurve } from "@/lib/mock-data";
+import type { Trade } from "@/lib/trading/types";
 
-function EquityCurveSvg() {
-  return (
-    <svg className="h-[210px] w-full sm:h-[240px]" viewBox="0 0 760 250" preserveAspectRatio="none" aria-label="Equity curve preview">
-      <defs>
-        <linearGradient id="equityFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="rgba(255,255,255,.5)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
-      </defs>
-      {[54, 96, 138, 180].map((y) => (
-        <line key={y} x1="0" x2="760" y1={y} y2={y} stroke="rgba(255,255,255,.09)" strokeDasharray="4 6" />
-      ))}
-      <path
-        d="M0 185 C22 176 28 152 54 166 C78 178 88 136 116 148 C134 155 138 127 162 135 C190 149 198 110 226 122 C254 135 276 112 304 132 C334 154 354 148 384 112 C404 89 420 100 436 82 C456 58 470 68 486 44 C506 10 520 52 540 34 C568 14 588 73 612 40 C636 11 648 73 672 48 C702 18 718 88 738 58 C750 40 754 65 760 55 L760 250 L0 250 Z"
-        fill="url(#equityFill)"
-      />
-      <path
-        d="M0 185 C22 176 28 152 54 166 C78 178 88 136 116 148 C134 155 138 127 162 135 C190 149 198 110 226 122 C254 135 276 112 304 132 C334 154 354 148 384 112 C404 89 420 100 436 82 C456 58 470 68 486 44 C506 10 520 52 540 34 C568 14 588 73 612 40 C636 11 648 73 672 48 C702 18 718 88 738 58 C750 40 754 65 760 55"
-        fill="none"
-        stroke="rgba(255,255,255,.92)"
-        strokeLinecap="round"
-        strokeWidth="3"
-      />
-    </svg>
-  );
+function buildEquityPoints(trades: Trade[]) {
+  const closedTrades = trades
+    .filter((trade) => trade.opened_at && trade.pnl !== null && trade.pnl !== undefined)
+    .sort((a, b) => new Date(a.opened_at ?? "").getTime() - new Date(b.opened_at ?? "").getTime());
+
+  let cumulativePnl = 0;
+  return closedTrades.map((trade) => {
+    cumulativePnl += Number(trade.pnl ?? 0);
+    return {
+      date: trade.opened_at ?? "",
+      value: cumulativePnl,
+    };
+  });
 }
 
-export function EquityCurveCard() {
+function formatCurrency(value: number) {
+  return value.toLocaleString("en-US", { style: "currency", currency: "USD" });
+}
+
+export function EquityCurveCard({ trades = [] }: { trades?: Trade[] }) {
+  const points = buildEquityPoints(trades);
+  const values = points.map((point) => point.value);
+  const latest = values.at(-1) ?? 0;
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  const range = Math.max(1, max - min);
+  const path = points
+    .map((point, index) => {
+      const x = (index / Math.max(1, points.length - 1)) * 760;
+      const y = 220 - ((point.value - min) / range) * 180;
+      return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(" ");
+
   return (
     <GlassCard className="p-4 lg:col-span-8 2xl:col-span-9">
       <div className="mb-3 flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-base font-semibold text-white">Equity Curve</h2>
-            <button className="inline-flex h-8 items-center gap-2 rounded-lg border border-white/10 bg-white/8 px-3 text-xs text-white">
-              All Accounts <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
-            </button>
+            <span className="inline-flex h-8 items-center rounded-lg border border-white/10 bg-white/8 px-3 text-xs text-zinc-300">Real journal PnL</span>
           </div>
           <div className="mt-4 flex flex-wrap items-end gap-3">
-            <div className="text-2xl font-semibold tracking-tight sm:text-3xl">{equityCurve.value}</div>
-            <div className="pb-1 text-sm text-emerald-300">{equityCurve.delta}</div>
+            <div className="text-2xl font-semibold tracking-tight sm:text-3xl">{formatCurrency(latest)}</div>
+            <div className={`pb-1 text-sm ${latest >= 0 ? "text-emerald-300" : "text-rose-300"}`}>Cumulative PnL</div>
           </div>
         </div>
-        <div className="hidden rounded-xl bg-black/25 p-1 text-xs text-zinc-400 sm:flex">
-          {["1D", "7D", "1M", "3M", "1Y"].map((range) => (
-            <button key={range} className={`h-8 rounded-lg px-3 ${range === "7D" ? "bg-white/12 text-white" : ""}`}>
-              {range}
-            </button>
-          ))}
-        </div>
       </div>
-      <div className="relative">
-        <div className="absolute left-0 top-5 hidden h-[190px] flex-col justify-between text-[11px] text-zinc-500 md:flex">
-          {equityCurve.yAxis.map((label) => <span key={label}>{label}</span>)}
+
+      {points.length ? (
+        <div className="relative">
+          <div className="absolute left-0 top-5 hidden h-[190px] flex-col justify-between text-[11px] text-zinc-500 md:flex">
+            {[max, (max + min) / 2, min].map((label, index) => <span key={`${label}-${index}`}>{formatCurrency(label)}</span>)}
+          </div>
+          <div className="pl-0 md:pl-20">
+            <svg className="h-[210px] w-full sm:h-[240px]" viewBox="0 0 760 250" preserveAspectRatio="none" aria-label="Real equity curve">
+              {[54, 96, 138, 180].map((y) => (
+                <line key={y} x1="0" x2="760" y1={y} y2={y} stroke="rgba(255,255,255,.09)" strokeDasharray="4 6" />
+              ))}
+              <path d={`${path} L760 250 L0 250 Z`} fill="rgba(255,255,255,.1)" />
+              <path d={path} fill="none" stroke="rgba(255,255,255,.92)" strokeLinecap="round" strokeWidth="3" />
+            </svg>
+          </div>
         </div>
-        <div className="pl-0 md:pl-10">
-          <EquityCurveSvg />
+      ) : (
+        <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-8 text-center">
+          <h3 className="text-base font-semibold text-white">No equity data yet.</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">Add trades or connect an import source to build your equity curve from real PnL.</p>
+          <Link href="/journal/new" className="mt-4 inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/10 px-4 text-sm font-medium text-white transition hover:bg-white/15">
+            Add Trade
+          </Link>
         </div>
-        <div className="hidden justify-between pl-10 text-[11px] text-zinc-500 md:flex">
-          {equityCurve.labels.map((day) => <span key={day}>{day}</span>)}
-        </div>
-      </div>
+      )}
     </GlassCard>
   );
 }

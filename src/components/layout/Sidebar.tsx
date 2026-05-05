@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   Bot,
+  Brain,
   CalendarDays,
   ChevronRight,
   Home,
   LineChart,
+  ListChecks,
   ScanLine,
   Settings,
   Sparkles,
@@ -26,6 +28,8 @@ const navItems = [
   { label: "Backtest Lab", href: "/backtest-lab", icon: LineChart },
   { label: "Strategies", href: "/strategies", icon: WandSparkles },
   { label: "Signals", href: "/signals", icon: Activity },
+  { label: "Psychology", href: "/psychology", icon: Brain },
+  { label: "Rules", href: "/rules", icon: ListChecks },
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
   { label: "Connections", href: "/connections", icon: Unplug },
   { label: "Settings", href: "/settings", icon: Settings },
@@ -57,10 +61,10 @@ export function Sidebar({ userEmail, userName }: SidebarProps) {
         <Sparkles className="h-5 w-5 text-white" strokeWidth={1.7} />
         <div className="text-[13px] font-semibold uppercase tracking-[0.16em] text-white">TradeMind AI</div>
       </Link>
-      <nav className="mt-4 space-y-1" aria-label="Main navigation">
+      <nav className="mt-4 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1" aria-label="Main navigation">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href || (item.href === "/dashboard" && pathname === "/");
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`) || (item.href === "/dashboard" && pathname === "/");
 
           return (
             <Link
@@ -76,7 +80,7 @@ export function Sidebar({ userEmail, userName }: SidebarProps) {
           );
         })}
       </nav>
-      <div className="mt-auto rounded-2xl border border-white/10 bg-white/[0.045] p-3">
+      <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.045] p-3">
         <div className="flex items-center gap-3">
           <div className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-xs font-semibold">{initials || "U"}</div>
           <div className="min-w-0 flex-1">

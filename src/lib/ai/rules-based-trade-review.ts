@@ -1,5 +1,10 @@
 import { calculateNewsRiskScore, getNewsRiskSummary } from "@/lib/calendar/news-risk";
 import type { EconomicEvent } from "@/lib/calendar/types";
+import type { DisciplineScore } from "@/lib/discipline/types";
+import { formatEmotion, normalizeEmotion } from "@/lib/psychology/emotions";
+import type { TradePsychology } from "@/lib/psychology/types";
+import type { RevengeEvent } from "@/lib/revenge/types";
+import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
 
 function clamp(value: number) {
@@ -11,7 +16,15 @@ function textIncludes(text: string, terms: string[]) {
   return terms.some((term) => normalized.includes(term.toLowerCase()));
 }
 
-export function generateRulesBasedTradeReview(trade: Trade, journalEntry: TradeJournalEntry | null, nearbyEconomicEvents: EconomicEvent[] = []) {
+export function generateRulesBasedTradeReview(
+  trade: Trade,
+  journalEntry: TradeJournalEntry | null,
+  nearbyEconomicEvents: EconomicEvent[] = [],
+  psychology: TradePsychology | null = null,
+  disciplineScore: DisciplineScore | null = null,
+  revengeEvents: RevengeEvent[] = [],
+  ruleChecks: TradeRuleCheckWithRule[] = [],
+) {
   const notes = [
     journalEntry?.reason_for_entry,
     journalEntry?.notes_before,
@@ -100,6 +113,64 @@ export function generateRulesBasedTradeReview(trade: Trade, journalEntry: TradeJ
   } else if (journalEntry?.notes_after || journalEntry?.notes_before) {
     psychologyScore += 8;
     strengths.push("Trade notes support post-trade reflection.");
+  }
+
+  const emotionBefore = normalizeEmotion(psychology?.emotion_before);
+  if (emotionBefore === "fomo" || emotionBefore === "greed" || emotionBefore === "revenge") {
+    psychologyScore -= emotionBefore === "revenge" ? 28 : 20;
+    weaknesses.push(`Psychology data shows ${formatEmotion(emotionBefore)} before entry.`);
+  } else if ((emotionBefore === "confident" || emotionBefore === "neutral") && (psychology?.confidence_level ?? 0) >= 7) {
+    psychologyScore += 12;
+    strengths.push("Psychology data shows stable confidence before entry.");
+  }
+
+  if ((psychology?.stress_level ?? 0) >= 8) {
+    psychologyScore -= 18;
+    weaknesses.push("Stress level was high before the trade.");
+    recommendations.push("Avoid trading under high stress conditions.");
+  }
+
+  if ((psychology?.fomo_score ?? 0) >= 7 || emotionBefore === "fomo") {
+    psychologyScore -= 12;
+    recommendations.push("Wait for confirmation before entering.");
+  }
+
+  if (emotionBefore === "revenge") {
+    recommendations.push("Take a mandatory break after losing trades.");
+  }
+
+  if (psychology?.discipline_note) {
+    psychologyScore += 6;
+    strengths.push("Discipline note adds behavioral context to the review.");
+  }
+
+  if (ruleChecks.length) {
+    const failedChecks = ruleChecks.filter((check) => check.passed === false);
+    if (failedChecks.length) {
+      structureScore -= Math.min(18, failedChecks.length * 6);
+      riskScore -= Math.min(20, failedChecks.length * 7);
+      psychologyScore -= Math.min(18, failedChecks.length * 6);
+      weaknesses.push(`You violated ${failedChecks.length} rule(s) from your checklist.`);
+      recommendations.push("Do not take trades that fail your own pre-trade checklist.");
+    } else {
+      strengths.push("Trade followed your active pre-trade checklist.");
+    }
+  }
+
+  const involvedRevengeEvent = revengeEvents.find((event) => event.previous_trade_id === trade.id || event.next_trade_id === trade.id);
+  if (involvedRevengeEvent && (Number(involvedRevengeEvent.revenge_score) || 0) > 0.7) {
+    psychologyScore -= 28;
+    weaknesses.push("This trade appears connected to a potential revenge pattern.");
+    recommendations.push("Use a mandatory cooldown after losses before opening another trade.");
+  }
+
+  const latestDisciplineScore = Number(disciplineScore?.total_score);
+  if (Number.isFinite(latestDisciplineScore) && latestDisciplineScore < 50) {
+    psychologyScore -= 12;
+    recommendations.push("Reduce risk and follow a written checklist until Discipline Score improves.");
+  } else if (Number.isFinite(latestDisciplineScore) && latestDisciplineScore > 80) {
+    psychologyScore += 10;
+    strengths.push("Recent Discipline Score suggests consistent behavioral execution.");
   }
 
   if (nearbyEconomicEvents.length) {

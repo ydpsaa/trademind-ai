@@ -1,47 +1,42 @@
 import Link from "next/link";
-import { MoreVertical } from "lucide-react";
+import { RadioTower } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { getNewsRiskTone, getSetupTone } from "@/lib/scanner/filters";
-import { getMarketScanResults } from "@/lib/scanner/mock-scanner";
 
-function titleCase(value: string) {
-  return value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
+const readinessRows = [
+  ["Market Data Feed", "Not connected"],
+  ["Scanner Engine", "Waiting for feed"],
+  ["Signals", "Disabled"],
+];
 
 export function MarketsCard() {
-  const markets = getMarketScanResults("15m").slice(0, 5);
-
   return (
     <GlassCard className="p-4 lg:col-span-4 2xl:col-span-3">
       <div className="mb-4 flex items-center justify-between">
-        <div className="flex gap-6 text-sm">
-          <span className="font-semibold text-white">Markets</span>
-          <span className="text-zinc-500">Favorites</span>
+        <div>
+          <h2 className="text-base font-semibold text-white">Markets</h2>
+          <p className="mt-1 text-xs text-zinc-500">Real market data required</p>
         </div>
-        <MoreVertical className="h-4 w-4 text-zinc-500" />
+        <StatusBadge tone="neutral">Not Connected</StatusBadge>
       </div>
-      <div className="divide-y divide-white/10">
-        {markets.map((market) => (
-          <div key={market.symbol} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-2.5">
-            <div>
-              <div className="text-sm font-semibold text-white">{market.symbol}</div>
-              <div className="text-xs text-zinc-500">{titleCase(market.bias)} / {market.confidence}% confidence</div>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <StatusBadge tone={getSetupTone(market.setupReadiness)}>{titleCase(market.setupReadiness)}</StatusBadge>
-              <span className={`text-[11px] ${getNewsRiskTone(market.newsRiskLevel) === "negative" ? "text-rose-300" : getNewsRiskTone(market.newsRiskLevel) === "warning" ? "text-amber-200" : "text-emerald-300"}`}>
-                {titleCase(market.newsRiskLevel)} news
-              </span>
-            </div>
+
+      <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+        <RadioTower className="h-5 w-5 text-zinc-400" />
+        <h3 className="mt-3 text-sm font-semibold text-white">Market Scanner is waiting.</h3>
+        <p className="mt-2 text-xs leading-5 text-zinc-500">Connect Market Data Feed to activate live scanner states, setup readiness, and signal validation.</p>
+      </div>
+
+      <div className="mt-4 divide-y divide-white/10 rounded-2xl border border-white/10 bg-white/[0.035]">
+        {readinessRows.map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs">
+            <span className="text-zinc-400">{label}</span>
+            <span className="text-zinc-200">{value}</span>
           </div>
         ))}
       </div>
-      <Link href="/market-scanner" className="mt-2 grid h-10 w-full place-items-center rounded-xl border border-white/10 bg-white/10 text-sm font-medium text-white">
-        Go to Market Scanner
+
+      <Link href="/connections/market-data" className="mt-3 grid h-10 w-full place-items-center rounded-xl border border-white/10 bg-white/10 text-sm font-medium text-white transition hover:bg-white/15">
+        View Market Data Setup
       </Link>
     </GlassCard>
   );

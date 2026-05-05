@@ -9,6 +9,7 @@ import { signalDirectionTone, signalNewsTone, signalStatusTone } from "@/lib/sig
 import type { Signal } from "@/lib/signals/types";
 import { formatDateTime, formatNumber } from "@/lib/trading/format";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 
 interface SignalDetailPageProps {
   params: Promise<{ signalId: string }>;
@@ -23,13 +24,14 @@ async function getSignal(signalId: string) {
 
   const { data, error } = await supabase
     .from("signals")
-    .select("*, strategies(name)")
+    .select("id,user_id,strategy_id,symbol,market_type,direction,entry_zone,stop_loss,take_profit,confidence,reasoning,status,news_risk,setup_type,timeframe,engine_type,scanner_snapshot,created_at,updated_at,strategies(name)")
     .eq("id", signalId)
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
   if (error) return null;
-  return (data ?? null) as Signal | null;
+  if (!data) return null;
+  return { signal: data as unknown as Signal, user: userData.user as User };
 }
 
 function titleCase(value: string | null | undefined) {
@@ -68,13 +70,16 @@ function snapshotDetected(snapshot: Signal["scanner_snapshot"], key: keyof NonNu
 
 export default async function SignalDetailPage({ params }: SignalDetailPageProps) {
   const { signalId } = await params;
-  const signal = await getSignal(signalId);
-  if (!signal) notFound();
+  const context = await getSignal(signalId);
+  if (!context) notFound();
 
+  const { signal, user } = context;
   const snapshot = signal.scanner_snapshot;
 
+  const isSandbox = signal.engine_type === "simulated";
+
   return (
-    <AppShell title="Signal Detail" subtitle="Simulated setup idea report.">
+    <AppShell title="Signal Detail" subtitle={isSandbox ? "Sandbox signal record." : "Signal report."} user={user}>
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
@@ -86,7 +91,7 @@ export default async function SignalDetailPage({ params }: SignalDetailPageProps
               <h2 className="text-2xl font-semibold">{signal.symbol}</h2>
               <StatusBadge tone={signalDirectionTone(signal.direction)}>{signal.direction}</StatusBadge>
               <StatusBadge tone={signalStatusTone(signal.status)}>{titleCase(signal.status)}</StatusBadge>
-              <StatusBadge tone="neutral">Simulated</StatusBadge>
+              <StatusBadge tone={isSandbox ? "neutral" : "positive"}>{isSandbox ? "Sandbox" : "Real Data"}</StatusBadge>
             </div>
             <p className="mt-2 text-sm text-zinc-500">{signal.strategies?.name || "Strategy snapshot"} / {signal.timeframe || "15m"} / {formatDateTime(signal.created_at)}</p>
           </div>
@@ -96,7 +101,7 @@ export default async function SignalDetailPage({ params }: SignalDetailPageProps
         <GlassCard className="border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>This is a simulated setup idea. Real execution is not connected.</span>
+            <span>{isSandbox ? "Sandbox signal - not real market data. Real execution is not connected." : "Real execution is not connected."}</span>
           </div>
         </GlassCard>
 

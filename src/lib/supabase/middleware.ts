@@ -9,6 +9,8 @@ const protectedRoutes = [
   "/backtest-lab",
   "/strategies",
   "/signals",
+  "/psychology",
+  "/rules",
   "/calendar",
   "/connections",
   "/system-status",

@@ -3,6 +3,10 @@ import { validateTradeReviewPayload, type TradeReviewPayload } from "@/lib/ai/re
 import { buildTradeReviewPrompt } from "@/lib/ai/trade-review-prompt";
 import type { NewsRiskLevel } from "@/lib/calendar/news-risk";
 import type { EconomicEvent } from "@/lib/calendar/types";
+import type { DisciplineScore } from "@/lib/discipline/types";
+import type { TradePsychology } from "@/lib/psychology/types";
+import type { RevengeEvent } from "@/lib/revenge/types";
+import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
 
 interface GenerateAITradeReviewInput {
@@ -12,12 +16,20 @@ interface GenerateAITradeReviewInput {
   economicEvents?: EconomicEvent[];
   newsRiskLevel?: NewsRiskLevel;
   newsRiskSummary?: string;
+  psychology?: TradePsychology | null;
+  disciplineScore?: DisciplineScore | null;
+  revengeEvents?: RevengeEvent[];
+  ruleChecks?: TradeRuleCheckWithRule[];
 }
 
 export interface AITradeReviewResult {
   review: TradeReviewPayload;
   model: string;
   provider: "openai";
+  usage: {
+    input_tokens: number | null;
+    output_tokens: number | null;
+  };
 }
 
 function extractJson(text: string) {
@@ -69,6 +81,10 @@ export async function generateAITradeReview(input: GenerateAITradeReviewInput): 
 
   const data = (await response.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+    };
   };
   const content = data.choices?.[0]?.message?.content;
 
@@ -88,5 +104,13 @@ export async function generateAITradeReview(input: GenerateAITradeReviewInput): 
     throw new Error("AI response did not match the review schema.");
   }
 
-  return { review, model, provider: "openai" };
+  return {
+    review,
+    model,
+    provider: "openai",
+    usage: {
+      input_tokens: typeof data.usage?.prompt_tokens === "number" ? data.usage.prompt_tokens : null,
+      output_tokens: typeof data.usage?.completion_tokens === "number" ? data.usage.completion_tokens : null,
+    },
+  };
 }

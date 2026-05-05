@@ -10,6 +10,7 @@ import { getCalendarRange, getImpactBadgeVariant, groupEventsByDay, parseCalenda
 import { getRiskWindowLabel } from "@/lib/calendar/news-risk";
 import { formatSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 
 interface CalendarPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -63,17 +64,17 @@ async function getEvents(range: CalendarRange, currency: CurrencyCode, impact: I
   const period = getCalendarRange(range);
 
   if (!supabase) {
-    return { events: [], todayEvents: [], error: "Supabase is not configured." };
+    return { events: [], todayEvents: [], error: "Supabase is not configured.", user: null };
   }
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
-    return { events: [], todayEvents: [], error: "You must be signed in to view the calendar." };
+    return { events: [], todayEvents: [], error: "You must be signed in to view the calendar.", user: null };
   }
 
   let query = supabase
     .from("economic_events")
-    .select("*")
+    .select("id,currency,title,impact,event_time,actual,forecast,previous,source,created_at,updated_at")
     .gte("event_time", period.startIso)
     .lte("event_time", period.endIso)
     .order("event_time", { ascending: true });
@@ -86,20 +87,21 @@ async function getEvents(range: CalendarRange, currency: CurrencyCode, impact: I
     query,
     supabase
       .from("economic_events")
-      .select("*")
+      .select("id,currency,title,impact,event_time,actual,forecast,previous,source,created_at,updated_at")
       .gte("event_time", today.startIso)
       .lte("event_time", today.endIso)
       .order("event_time", { ascending: true }),
   ]);
 
   if (eventsResult.error) {
-    return { events: [], todayEvents: [], error: formatCalendarError(eventsResult.error.message) };
+    return { events: [], todayEvents: [], error: formatCalendarError(eventsResult.error.message), user: userData.user as User };
   }
 
   return {
     events: (eventsResult.data ?? []) as EconomicEvent[],
     todayEvents: todayResult.error ? [] : ((todayResult.data ?? []) as EconomicEvent[]),
     error: null,
+    user: userData.user as User,
   };
 }
 
@@ -108,11 +110,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const range = parseCalendarRange(params.range);
   const currency = parseCurrency(params.currency);
   const impact = parseImpact(params.impact);
-  const { events, todayEvents, error } = await getEvents(range, currency, impact);
+  const { events, todayEvents, error, user } = await getEvents(range, currency, impact);
   const groupedEvents = groupEventsByDay(events);
 
   return (
-    <AppShell title="Economic Calendar" subtitle="Track high-impact macro events that may affect Forex, Gold, Crypto and Indices.">
+    <AppShell title="Economic Calendar" subtitle="Track high-impact macro events that may affect Forex, Gold, Crypto and Indices." user={user}>
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div className="space-y-4">
           <TodaysEventsCard events={todayEvents} />
@@ -192,14 +194,20 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                   </div>
                   <div className="overflow-hidden rounded-2xl border border-white/10">
                     <div className="divide-y divide-white/10">
-                      {group.events.map((event) => (
+                      {group.events.map((event) => {
+                        const isSample = event.source === "sample" || event.title.toLowerCase().startsWith("sample");
+
+                        return (
                         <div key={event.id} className="grid gap-4 bg-black/15 p-4 text-sm transition hover:bg-white/[0.04] xl:grid-cols-[72px_64px_88px_minmax(0,1fr)_minmax(120px,150px)_minmax(210px,250px)] xl:items-center">
                           <span className="font-mono text-white">{formatTime(event.event_time)}</span>
                           <StatusBadge tone="neutral">{event.currency}</StatusBadge>
                           <StatusBadge tone={getImpactBadgeVariant(event.impact)}>{event.impact}</StatusBadge>
                           <div className="min-w-0">
-                            <div className="text-zinc-200 xl:truncate">{event.title}</div>
-                            <div className="mt-1 text-xs text-zinc-500">Source: {event.source || "manual"}</div>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <span className="text-zinc-200 xl:truncate">{event.title}</span>
+                              {isSample ? <StatusBadge tone="neutral">Sample</StatusBadge> : null}
+                            </div>
+                            <div className="mt-1 text-xs text-zinc-500">Source: {isSample ? "sample data" : event.source || "manual"}</div>
                           </div>
                           <div className="grid grid-cols-3 gap-2 text-xs text-zinc-500 xl:block xl:space-y-1">
                             <span>Actual <span className="block text-sm text-zinc-300">{event.actual || "-"}</span></span>
@@ -208,7 +216,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                           </div>
                           <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-zinc-400">{getRiskWindowLabel(event)}</div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

@@ -3,9 +3,11 @@ import { Cable, CheckCircle2, Clock3, LockKeyhole, ShieldAlert, ShieldCheck } fr
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { isAdminUser } from "@/lib/auth/admin";
 import { connectionStatusTone, deriveRuntimeStatus, summarizeConnections, userConnectionProviders } from "@/lib/connections/connection-status";
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 
 function formatDateTime(value: string | null) {
   if (!value) return "Not checked";
@@ -34,13 +36,13 @@ function connectionPatchMessage(message: string) {
 
 async function getConnectionContext() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { records: [], error: "Supabase is not configured.", calendarReadable: false, sessionPresent: false };
+  if (!supabase) return { records: [], error: "Supabase is not configured.", calendarReadable: false, sessionPresent: false, isAdmin: false, user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { records: [], error: "You must be signed in to view connections.", calendarReadable: false, sessionPresent: false };
+  if (userError || !userData.user) return { records: [], error: "You must be signed in to view connections.", calendarReadable: false, sessionPresent: false, isAdmin: false, user: null };
 
   const [recordsResult, calendarResult] = await Promise.all([
-    supabase.from("integration_connections").select("*").eq("user_id", userData.user.id).order("updated_at", { ascending: false }),
+    supabase.from("integration_connections").select("id,user_id,provider,status,mode,display_name,metadata,last_checked_at,created_at,updated_at").eq("user_id", userData.user.id).order("updated_at", { ascending: false }),
     supabase.from("economic_events").select("id", { count: "exact", head: true }),
   ]);
 
@@ -49,6 +51,8 @@ async function getConnectionContext() {
     error: recordsResult.error ? connectionPatchMessage(recordsResult.error.message) : null,
     calendarReadable: !calendarResult.error,
     sessionPresent: true,
+    isAdmin: isAdminUser(userData.user),
+    user: userData.user as User,
   };
 }
 
@@ -195,7 +199,7 @@ export default async function ConnectionsPage() {
   const automationProviders = userConnectionProviders.filter((provider) => provider.category === "Future Automation");
 
   return (
-    <AppShell title="Connections" subtitle="Connect exchange, broker, charting, and market data tools for your trading workspace.">
+    <AppShell title="Connections" subtitle="Connect exchange, broker, charting, and market data tools for your trading workspace." user={context.user}>
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
@@ -207,7 +211,7 @@ export default async function ConnectionsPage() {
                 <h2 className="text-xl font-semibold">Integration Hub</h2>
                 <StatusBadge tone="positive">Trading Integrations</StatusBadge>
               </div>
-              <p className="mt-1 text-sm text-zinc-500">User-facing trading connections only. Internal platform services live in System Status.</p>
+              <p className="mt-1 text-sm text-zinc-500">User-facing trading connections only.</p>
             </div>
           </div>
         </div>
@@ -240,14 +244,16 @@ export default async function ConnectionsPage() {
         <ProviderSection title="Charts & Market Data" description="Charting and market data inputs for future scanner, backtest, and signal validation." providers={chartProviders} statuses={statusMap} />
         <ProviderSection title="Future Automation" description="Execution remains disabled until a dedicated safety and paper-trading stage." providers={automationProviders} statuses={statusMap} />
 
-        <GlassCard className="p-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm leading-6 text-zinc-400">Internal platform services are tracked separately and are not user trading connections.</p>
-            <Link href="/system-status" className="grid h-10 place-items-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/10">
-              System Status
-            </Link>
-          </div>
-        </GlassCard>
+        {context.isAdmin ? (
+          <GlassCard className="p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <p className="text-sm leading-6 text-zinc-400">Internal platform services are tracked separately and are not user trading connections.</p>
+              <Link href="/system-status" className="grid h-10 place-items-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/10">
+                System Status
+              </Link>
+            </div>
+          </GlassCard>
+        ) : null}
       </div>
     </AppShell>
   );

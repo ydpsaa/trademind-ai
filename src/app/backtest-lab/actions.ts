@@ -82,6 +82,10 @@ async function currentUserClient() {
 
 export async function runBacktestAction(_state: BacktestFormState, formData: FormData): Promise<BacktestFormState> {
   try {
+    if (process.env.ENABLE_BACKTEST_SANDBOX !== "true") {
+      return { error: "Backtest sandbox is disabled until Historical Market Data integration is connected." };
+    }
+
     const context = await currentUserClient();
     if ("error" in context) return { error: context.error };
 
@@ -101,7 +105,7 @@ export async function runBacktestAction(_state: BacktestFormState, formData: For
 
     const { data: strategy, error: strategyError } = await context.supabase
       .from("strategies")
-      .select("*")
+      .select("id,user_id,name,description,rules_json,is_active,created_at,updated_at")
       .eq("id", strategyId)
       .eq("user_id", context.user.id)
       .maybeSingle();

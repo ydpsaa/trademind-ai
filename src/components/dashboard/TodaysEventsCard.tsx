@@ -26,16 +26,21 @@ export function TodaysEventsCard({ events = [] }: TodaysEventsCardProps) {
         {events.some((event) => event.impact === "High") ? <StatusBadge tone="negative">High risk</StatusBadge> : null}
       </div>
       <div className="mt-4 divide-y divide-white/10">
-        {sortedEvents.length ? sortedEvents.map((event) => (
+        {sortedEvents.length ? sortedEvents.map((event) => {
+          const isSample = event.source === "sample" || event.title.toLowerCase().startsWith("sample");
+
+          return (
           <div key={event.id} className={`grid grid-cols-[42px_36px_minmax(0,1fr)] items-center gap-2 py-3 text-xs min-[1500px]:grid-cols-[42px_36px_minmax(0,1fr)_auto] ${event.impact === "High" ? "bg-rose-400/[0.03]" : ""}`}>
             <span className="font-mono text-white">{formatEventTime(event.event_time)}</span>
             <span className="font-semibold text-zinc-300">{event.currency}</span>
             <span className="truncate text-zinc-300">{event.title}</span>
-            <span className="col-start-3 min-[1500px]:col-auto">
+            <span className="col-start-3 flex flex-wrap gap-1 min-[1500px]:col-auto">
               <StatusBadge tone={getImpactBadgeVariant(event.impact)}>{event.impact}</StatusBadge>
+              {isSample ? <StatusBadge tone="neutral">Sample</StatusBadge> : null}
             </span>
           </div>
-        )) : (
+          );
+        }) : (
           <div className="py-5 text-sm leading-6 text-zinc-400">No major events today.</div>
         )}
       </div>

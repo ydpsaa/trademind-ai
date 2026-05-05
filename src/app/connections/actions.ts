@@ -109,9 +109,9 @@ export async function checkConnectionStatusAction(_state: ConnectionActionState,
       error: error ? connectionPatchMessage(error.message) : null,
     };
   } else if (providerId === "market-data") {
-    status = "simulated";
-    mode = "simulated";
-    metadata = { externalCallsEnabled: false, message: "Local simulated scanner data is active." };
+    status = "not_connected";
+    mode = "safe_setup";
+    metadata = { externalCallsEnabled: false, message: "Market Data Feed is not connected." };
   } else if (providerId === "bybit" || providerId === "okx") {
     status = "not_connected";
     mode = "read_only_future";

@@ -1,11 +1,17 @@
-import { Activity, Bot, CalendarDays, Database, LineChart, Radio, ShieldCheck, Signal } from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Activity, Bot, CalendarDays, Database, DollarSign, LineChart, Radio, ShieldCheck, Signal } from "lucide-react";
 import { ConnectionStatusButton } from "@/components/connections/ConnectionStatusButton";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import type { AIUsageLog } from "@/lib/ai/usage-types";
+import { isAdminUser } from "@/lib/auth/admin";
 import { connectionStatusTone, deriveRuntimeStatus, systemServiceProviders } from "@/lib/connections/connection-status";
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { formatMoney } from "@/lib/trading/stats";
+import { getCurrentUsagePeriod, getUserUsage, type UserUsageSnapshot } from "@/lib/usage/user-usage";
 
 function formatDateTime(value: string | null) {
   if (!value) return "Not checked";
@@ -32,27 +38,73 @@ function patchMessage(message: string) {
   return message;
 }
 
+interface AIUsageSummary {
+  usage: UserUsageSnapshot | null;
+  lastSource: string;
+  lastModel: string;
+  estimatedCostThisMonth: number | null;
+}
+
 async function getSystemContext() {
+  const emptyUsageSummary: AIUsageSummary = {
+    usage: null,
+    lastSource: "None",
+    lastModel: "None",
+    estimatedCostThisMonth: null,
+  };
+
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { records: [], error: "Supabase is not configured.", calendarReadable: false, sessionPresent: false };
+  if (!supabase) return { records: [], error: "Database service is not configured.", calendarReadable: false, calendarSource: "not_connected", sessionPresent: false, aiUsageSummary: emptyUsageSummary };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { records: [], error: "You must be signed in to view system status.", calendarReadable: false, sessionPresent: false };
+  if (userError || !userData.user) return { records: [], error: "You must be signed in to view system status.", calendarReadable: false, calendarSource: "not_connected", sessionPresent: false, aiUsageSummary: emptyUsageSummary };
 
-  const [recordsResult, calendarResult] = await Promise.all([
-    supabase.from("integration_connections").select("*").eq("user_id", userData.user.id).order("updated_at", { ascending: false }),
-    supabase.from("economic_events").select("id", { count: "exact", head: true }),
+  const { periodStart, periodEnd } = getCurrentUsagePeriod();
+
+  const [recordsResult, calendarResult, usage, latestUsageResult, monthlyUsageResult] = await Promise.all([
+    supabase.from("integration_connections").select("id,user_id,provider,status,mode,display_name,metadata,last_checked_at,created_at,updated_at").eq("user_id", userData.user.id).order("updated_at", { ascending: false }),
+    supabase.from("economic_events").select("source").limit(25),
+    getUserUsage(userData.user.id),
+    supabase
+      .from("ai_usage_logs")
+      .select("generation_source, model, created_at")
+      .eq("user_id", userData.user.id)
+      .eq("feature", "trade_review")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("ai_usage_logs")
+      .select("estimated_cost")
+      .eq("user_id", userData.user.id)
+      .gte("created_at", periodStart)
+      .lt("created_at", periodEnd),
   ]);
+
+  const monthlyCosts = monthlyUsageResult.error ? [] : ((monthlyUsageResult.data ?? []) as Pick<AIUsageLog, "estimated_cost">[]);
+  const estimatedCostThisMonth = monthlyCosts.reduce((sum, item) => sum + (Number(item.estimated_cost) || 0), 0);
+  const latestUsage = latestUsageResult.error ? null : (latestUsageResult.data as Pick<AIUsageLog, "generation_source" | "model"> | null);
+
+  const calendarRows = calendarResult.error ? [] : ((calendarResult.data ?? []) as { source: string | null }[]);
+  const calendarSources = new Set(calendarRows.map((row) => row.source || "manual"));
+  const calendarSource = calendarResult.error || !calendarRows.length ? "not_connected" : calendarSources.has("provider") ? "provider" : calendarSources.has("manual") ? "manual" : "sample";
 
   return {
     records: recordsResult.error ? [] : ((recordsResult.data ?? []) as IntegrationConnection[]),
     error: recordsResult.error ? patchMessage(recordsResult.error.message) : null,
     calendarReadable: !calendarResult.error,
+    calendarSource,
     sessionPresent: true,
+    aiUsageSummary: {
+      usage,
+      lastSource: latestUsage?.generation_source === "ai" ? "AI" : latestUsage?.generation_source === "rules" ? "Local Rules" : "None",
+      lastModel: latestUsage?.model ?? "None",
+      estimatedCostThisMonth,
+    },
   };
 }
 
-function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[], context: { calendarReadable: boolean; sessionPresent: boolean }): ProviderRuntimeStatus {
+function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[], context: { calendarReadable: boolean; calendarSource: string; sessionPresent: boolean }): ProviderRuntimeStatus {
   const stored = deriveRuntimeStatus(provider, records);
 
   if (!stored.lastCheckedAt) {
@@ -64,9 +116,8 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         mode: "configured",
         label: connected ? "connected" : "error",
         metadata: {
-          publicUrlConfigured: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-          anonKeyConfigured: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-          sessionPresent: context.sessionPresent,
+          database: connected ? "configured" : "not configured",
+          auth: context.sessionPresent ? "active session" : "no session",
         },
       };
     }
@@ -79,20 +130,20 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         mode: connected ? "configured" : "fallback",
         label: connected ? "connected" : "fallback",
         metadata: {
-          aiKeyConfigured: connected,
-          provider: process.env.AI_PROVIDER || "openai",
+          service: connected ? "configured" : "local fallback",
           model: process.env.OPENAI_MODEL || "local-rules",
         },
       };
     }
 
     if (provider.provider === "economic-calendar") {
+      const sampleOnly = context.calendarSource === "sample";
       return {
         ...stored,
-        status: context.calendarReadable ? "connected" : "error",
-        mode: "configured",
-        label: context.calendarReadable ? "connected" : "error",
-        metadata: { readable: context.calendarReadable },
+        status: context.calendarReadable && !sampleOnly ? "connected" : context.calendarReadable ? "fallback" : "not_connected",
+        mode: context.calendarSource === "not_connected" ? "safe_setup" : "configured",
+        label: context.calendarSource,
+        metadata: { dataSource: context.calendarSource },
       };
     }
   }
@@ -179,12 +230,71 @@ function EngineCard({ icon: Icon, title, status, mode, powers }: { icon: typeof 
   );
 }
 
+function AIUsageSummaryCard({ summary }: { summary: AIUsageSummary }) {
+  return (
+    <GlassCard className="p-4 md:p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <DollarSign className="h-4 w-4 text-zinc-400" />
+        <h2 className="text-lg font-semibold text-white">AI Usage This Month</h2>
+        <StatusBadge tone="neutral">Cost control foundation</StatusBadge>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-zinc-400">
+        Usage is tracked for the current signed-in user only. Billing and hard limits are not enabled yet.
+      </p>
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="text-xs text-zinc-500">AI Reviews</div>
+          <div className="mt-1 text-xl font-semibold text-white">{summary.usage?.ai_reviews_count ?? 0}</div>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="text-xs text-zinc-500">Last Source</div>
+          <div className="mt-1 text-white">{summary.lastSource}</div>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="text-xs text-zinc-500">Last Model</div>
+          <div className="mt-1 truncate text-white">{summary.lastModel}</div>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="text-xs text-zinc-500">Estimated Cost</div>
+          <div className="mt-1 text-white">{summary.estimatedCostThisMonth == null ? "$0.00" : formatMoney(summary.estimatedCostThisMonth)}</div>
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
 export default async function SystemStatusPage() {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) redirect("/login?next=/system-status");
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) redirect("/login?next=/system-status");
+
+  if (!isAdminUser(userData.user)) {
+    return (
+      <AppShell title="System Status" subtitle="Admin-only platform diagnostics." user={userData.user}>
+        <GlassCard className="mx-auto max-w-2xl p-5 md:p-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-zinc-300" />
+            <h2 className="text-xl font-semibold text-white">Admin access required</h2>
+            <StatusBadge tone="neutral">Restricted</StatusBadge>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-zinc-400">
+            System Status is available only for platform administrators.
+          </p>
+          <Link href="/dashboard" className="mt-5 inline-grid h-10 place-items-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/10">
+            Back to Dashboard
+          </Link>
+        </GlassCard>
+      </AppShell>
+    );
+  }
+
   const context = await getSystemContext();
   const statuses = systemServiceProviders.map((provider) => runtimeStatus(provider, context.records, context));
 
   return (
-    <AppShell title="System Status" subtitle="Internal platform services and safe runtime checks.">
+    <AppShell title="System Status" subtitle="Internal platform services and safe runtime checks." user={userData.user}>
       <div className="space-y-4">
         <GlassCard className="p-4 md:p-5">
           <div className="flex flex-wrap items-center gap-2">
@@ -193,11 +303,13 @@ export default async function SystemStatusPage() {
             <StatusBadge tone="neutral">Not user trading connections</StatusBadge>
           </div>
           <p className="mt-3 max-w-4xl text-sm leading-6 text-zinc-400">
-            This page shows platform-managed services used by TradeMind AI. It only shows configured yes/no, connected/fallback/simulated state, and safe metadata. Secrets and raw environment values are never displayed.
+            This page shows platform-managed services used by TradeMind AI. It only shows connected, fallback, not connected, or disabled states with safe metadata. Secrets and raw environment values are never displayed.
           </p>
         </GlassCard>
 
         {context.error ? <GlassCard className="border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">{context.error}</GlassCard> : null}
+
+        <AIUsageSummaryCard summary={context.aiUsageSummary} />
 
         <div className="grid gap-4 xl:grid-cols-3">
           {systemServiceProviders.map((provider, index) => (
@@ -206,10 +318,10 @@ export default async function SystemStatusPage() {
         </div>
 
         <div className="grid gap-4 xl:grid-cols-2">
-          <EngineCard icon={LineChart} title="Market Data Mode" status="simulated" mode="Local simulated data" powers={["Market scanner", "Dashboard market panel", "Signal setup ideas"]} />
-          <EngineCard icon={Activity} title="Scanner Engine" status="simulated" mode="Local scanner engine" powers={["SMC checklist", "Bias state", "Setup readiness"]} />
-          <EngineCard icon={Radio} title="Backtest Engine" status="simulated" mode="Deterministic mock engine" powers={["Backtest Lab", "Dashboard latest backtest", "Strategy previews"]} />
-          <EngineCard icon={Signal} title="Signal Engine" status="simulated" mode="Simulated setup engine" powers={["Signals page", "Signal detail", "Dashboard signal preview"]} />
+          <EngineCard icon={LineChart} title="Market Data Feed" status="not_connected" mode="Waiting for provider integration" powers={["Market scanner", "Dashboard market panel", "Signal validation"]} />
+          <EngineCard icon={Activity} title="Scanner Engine" status="not_connected" mode="Waiting for real market data" powers={["SMC checklist", "Bias state", "Setup readiness"]} />
+          <EngineCard icon={Radio} title="Backtest Engine" status="not_connected" mode="Waiting for historical market data" powers={["Backtest Lab", "Dashboard latest backtest", "Strategy validation"]} />
+          <EngineCard icon={Signal} title="Signal Engine" status="not_connected" mode="Waiting for market data" powers={["Signals page", "Signal detail", "Dashboard signal preview"]} />
         </div>
 
         <GlassCard className="border-white/10 bg-white/[0.04] p-4">

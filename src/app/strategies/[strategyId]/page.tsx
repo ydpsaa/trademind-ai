@@ -8,6 +8,7 @@ import { StrategyChipList, StrategyRuleBadges } from "@/components/strategies/St
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Strategy } from "@/lib/strategies/types";
 import { normalizeStrategyRules } from "@/lib/strategies/validation";
+import type { User } from "@supabase/supabase-js";
 
 interface StrategyDetailPageProps {
   params: Promise<{ strategyId: string }>;
@@ -22,13 +23,13 @@ async function getStrategy(strategyId: string) {
 
   const { data, error } = await supabase
     .from("strategies")
-    .select("*")
+    .select("id,user_id,name,description,rules_json,is_active,created_at,updated_at")
     .eq("id", strategyId)
     .eq("user_id", userData.user.id)
     .single();
 
   if (error || !data) return null;
-  return data as Strategy;
+  return { strategy: data as Strategy, user: userData.user as User };
 }
 
 function RuleRow({ label, value }: { label: string; value: string }) {
@@ -58,17 +59,18 @@ function FutureCard({ icon: Icon, title }: { icon: typeof Beaker; title: string 
 
 export default async function StrategyDetailPage({ params }: StrategyDetailPageProps) {
   const { strategyId } = await params;
-  const strategy = await getStrategy(strategyId);
+  const context = await getStrategy(strategyId);
 
-  if (!strategy) {
+  if (!context) {
     notFound();
   }
 
+  const { strategy, user } = context;
   const rules = normalizeStrategyRules(strategy.rules_json);
   const boolLabel = (value: boolean) => (value ? "Required" : "Optional");
 
   return (
-    <AppShell title={strategy.name} subtitle="Strategy rule detail.">
+    <AppShell title={strategy.name} subtitle="Strategy rule detail." user={user}>
       <div className="space-y-4">
         <GlassCard className="p-4 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">

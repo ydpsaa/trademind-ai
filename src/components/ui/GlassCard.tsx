@@ -7,5 +7,5 @@ interface GlassCardProps {
 }
 
 export function GlassCard({ children, className = "", as: Component = "section" }: GlassCardProps) {
-  return <Component className={`glass-panel rounded-2xl ${className}`}>{children}</Component>;
+  return <Component className={`glass-panel content-auto rounded-2xl ${className}`}>{children}</Component>;
 }

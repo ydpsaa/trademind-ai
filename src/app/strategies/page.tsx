@@ -9,6 +9,7 @@ import { defaultStrategyTemplates } from "@/lib/strategies/defaults";
 import type { Strategy } from "@/lib/strategies/types";
 import { normalizeStrategyRules } from "@/lib/strategies/validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 
 interface StrategiesPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -16,19 +17,19 @@ interface StrategiesPageProps {
 
 async function getStrategies() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { strategies: [], error: "Supabase is not configured." };
+  if (!supabase) return { strategies: [], error: "Supabase is not configured.", user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { strategies: [], error: "You must be signed in to view strategies." };
+  if (userError || !userData.user) return { strategies: [], error: "You must be signed in to view strategies.", user: null };
 
   const { data, error } = await supabase
     .from("strategies")
-    .select("*")
+    .select("id,user_id,name,description,rules_json,is_active,created_at,updated_at")
     .eq("user_id", userData.user.id)
     .order("created_at", { ascending: false });
 
-  if (error) return { strategies: [], error: error.message };
-  return { strategies: (data ?? []) as Strategy[], error: null };
+  if (error) return { strategies: [], error: error.message, user: userData.user as User };
+  return { strategies: (data ?? []) as Strategy[], error: null, user: userData.user as User };
 }
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
@@ -42,14 +43,14 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
 
 export default async function StrategiesPage({ searchParams }: StrategiesPageProps) {
   const params = await searchParams;
-  const { strategies, error } = await getStrategies();
+  const { strategies, error, user } = await getStrategies();
   const rules = strategies.map((strategy) => normalizeStrategyRules(strategy.rules_json));
   const activeCount = strategies.filter((strategy) => strategy.is_active).length;
   const avgRr = rules.length ? rules.reduce((sum, item) => sum + item.minimumRr, 0) / rules.length : 0;
   const strictNewsCount = rules.filter((item) => item.avoidHighImpactNews).length;
 
   return (
-    <AppShell title="Strategies" subtitle="Build reusable trading rules for backtests, signals, and AI reviews.">
+    <AppShell title="Strategies" subtitle="Build reusable trading rules for backtests, signals, and AI reviews." user={user}>
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">

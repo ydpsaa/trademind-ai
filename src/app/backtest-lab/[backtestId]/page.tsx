@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { BacktestRow } from "@/lib/backtest/types";
 import { formatDateTime, formatNumber } from "@/lib/trading/format";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 
 interface BacktestDetailPageProps {
   params: Promise<{ backtestId: string }>;
@@ -22,13 +23,14 @@ async function getBacktest(backtestId: string) {
 
   const { data, error } = await supabase
     .from("backtests")
-    .select("*, strategies(name)")
+    .select("id,user_id,strategy_id,symbol,timeframe,period_start,period_end,initial_balance,final_balance,total_trades,winrate,profit_factor,max_drawdown,avg_rr,report_json,created_at,strategies(name)")
     .eq("id", backtestId)
     .eq("user_id", userData.user.id)
     .maybeSingle();
 
   if (error) return null;
-  return (data ?? null) as BacktestRow | null;
+  if (!data) return null;
+  return { backtest: data as unknown as BacktestRow, user: userData.user as User };
 }
 
 function currency(value: number | null | undefined) {
@@ -47,9 +49,10 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 export default async function BacktestDetailPage({ params }: BacktestDetailPageProps) {
   const { backtestId } = await params;
-  const backtest = await getBacktest(backtestId);
-  if (!backtest) notFound();
+  const context = await getBacktest(backtestId);
+  if (!context) notFound();
 
+  const { backtest, user } = context;
   const report = backtest.report_json;
   const input = report?.input;
   const trades = report?.simulatedTrades ?? [];
@@ -57,7 +60,7 @@ export default async function BacktestDetailPage({ params }: BacktestDetailPageP
   const netPnl = Number(backtest.final_balance ?? 0) - Number(backtest.initial_balance ?? 0);
 
   return (
-    <AppShell title="Backtest Detail" subtitle="Saved simulated backtest report.">
+    <AppShell title="Backtest Detail" subtitle="Saved backtest report." user={user}>
       <div className="space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
@@ -67,7 +70,7 @@ export default async function BacktestDetailPage({ params }: BacktestDetailPageP
             </Link>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <h2 className="text-2xl font-semibold">{backtest.strategies?.name || report?.strategySnapshot.name || "Strategy deleted"}</h2>
-              <StatusBadge tone="neutral">Simulated</StatusBadge>
+              <StatusBadge tone="neutral">Sandbox</StatusBadge>
             </div>
             <p className="mt-2 text-sm text-zinc-500">
               {backtest.symbol} / {backtest.timeframe} / {formatDateTime(backtest.period_start)} - {formatDateTime(backtest.period_end)}
@@ -76,7 +79,7 @@ export default async function BacktestDetailPage({ params }: BacktestDetailPageP
           <GlassCard className="border-amber-300/20 bg-amber-300/10 p-3 text-sm text-amber-100">
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>Real market data is not connected yet. This report is simulated foundation output.</span>
+              <span>Sandbox backtest - not real historical market data. This report must not be treated as real performance.</span>
             </div>
           </GlassCard>
         </div>

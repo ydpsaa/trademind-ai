@@ -1,9 +1,10 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAnonKey, getSupabaseServiceRoleKey, getSupabaseUrl, hasSupabasePublicEnv } from "@/lib/supabase/config";
 
-export async function createSupabaseServerClient() {
+export const createSupabaseServerClient = cache(async () => {
   const cookieStore = await cookies();
   const supabaseUrl = getSupabaseUrl();
   const supabaseAnonKey = getSupabaseAnonKey();
@@ -26,9 +27,9 @@ export async function createSupabaseServerClient() {
       },
     },
   });
-}
+});
 
-export async function getCurrentUser() {
+export const getCurrentUser = cache(async () => {
   if (!hasSupabasePublicEnv()) {
     return null;
   }
@@ -40,7 +41,7 @@ export async function getCurrentUser() {
 
   const { data } = await supabase.auth.getUser();
   return data.user ?? null;
-}
+});
 
 export function createSupabaseServiceRoleClient() {
   const supabaseUrl = getSupabaseUrl();

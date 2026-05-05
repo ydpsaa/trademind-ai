@@ -318,6 +318,7 @@ export default async function SystemStatusPage() {
         </div>
 
         <div className="grid gap-4 xl:grid-cols-2">
+          <EngineCard icon={Database} title="Trading Accounts Model" status="connected" mode="User-scoped account selector active" powers={["Dashboard filters", "Journal filters", "Future CSV/import accounts"]} />
           <EngineCard icon={LineChart} title="Market Data Feed" status="not_connected" mode="Waiting for provider integration" powers={["Market scanner", "Dashboard market panel", "Signal validation"]} />
           <EngineCard icon={Activity} title="Scanner Engine" status="not_connected" mode="Waiting for real market data" powers={["SMC checklist", "Bias state", "Setup readiness"]} />
           <EngineCard icon={Radio} title="Backtest Engine" status="not_connected" mode="Waiting for historical market data" powers={["Backtest Lab", "Dashboard latest backtest", "Strategy validation"]} />

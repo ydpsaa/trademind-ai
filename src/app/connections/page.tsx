@@ -224,7 +224,7 @@ export default async function ConnectionsPage() {
             <div>
               <h2 className="text-sm font-semibold text-white">Security policy</h2>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-400">
-                Broker and exchange connections start with read-only import. Trading execution is disabled. Never use withdrawal permissions for exchange API keys. API key storage will be encrypted before real broker integration is enabled.
+                Broker and exchange connections start with read-only import. Trading execution is disabled. Never use withdrawal permissions for exchange API keys. Connected Bybit, OKX, MetaTrader, and future CSV import accounts will appear in the account selector after their import stages are enabled.
               </p>
             </div>
           </div>

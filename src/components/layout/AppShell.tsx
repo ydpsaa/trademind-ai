@@ -10,9 +10,10 @@ interface AppShellProps {
   title?: string;
   subtitle?: string;
   user?: User | null;
+  accountSelector?: ReactNode;
 }
 
-export async function AppShell({ children, rightRail, title, subtitle, user: providedUser }: AppShellProps) {
+export async function AppShell({ children, rightRail, title, subtitle, user: providedUser, accountSelector }: AppShellProps) {
   const user = providedUser === undefined ? await getCurrentUser() : providedUser;
   const displayName = user?.user_metadata?.full_name || user?.email || "Alex Trader";
 
@@ -22,7 +23,7 @@ export async function AppShell({ children, rightRail, title, subtitle, user: pro
       <div className="relative grid min-h-screen w-full gap-3.5 p-3.5 lg:grid-cols-[210px_minmax(0,1fr)] min-[1400px]:grid-cols-[210px_minmax(0,1fr)_286px] 2xl:grid-cols-[220px_minmax(0,1fr)_300px] 2xl:gap-4 2xl:p-4">
         <Sidebar userEmail={user?.email ?? null} userName={displayName} />
         <div className="min-w-0">
-          <Topbar title={title} subtitle={subtitle} />
+          <Topbar title={title} subtitle={subtitle} accountSelector={accountSelector} />
           <div className="mt-4 min-w-0">{children}</div>
         </div>
         {rightRail}

@@ -40,7 +40,8 @@ create table if not exists public.trading_accounts (
   account_name text,
   account_type text,
   currency text default 'USD',
-  status text default 'mock',
+  status text default 'active',
+  metadata jsonb default '{}'::jsonb,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

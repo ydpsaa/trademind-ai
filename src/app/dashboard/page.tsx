@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AccountSelector } from "@/components/accounts/AccountSelector";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MetricCard } from "@/components/dashboard/MetricCard";
@@ -14,6 +15,8 @@ import { RulesPreviewCard } from "@/components/dashboard/RulesPreviewCard";
 import { AIInsightPanel } from "@/components/dashboard/AIInsightPanel";
 import { TodaysEventsCard } from "@/components/dashboard/TodaysEventsCard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { MANUAL_ACCOUNT_VALUE, normalizeSelectedAccount } from "@/lib/accounts/helpers";
+import type { TradingAccount } from "@/lib/accounts/types";
 import { getCalendarRange } from "@/lib/calendar/filters";
 import { calculateDashboardStats } from "@/lib/trading/dashboard-stats";
 import type { BacktestRow } from "@/lib/backtest/types";
@@ -25,6 +28,10 @@ import type { TradeRuleCheckWithRule, TradingRule } from "@/lib/rules/types";
 import type { AITradeReview, Trade } from "@/lib/trading/types";
 import type { Signal } from "@/lib/signals/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+interface DashboardPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
 function DashboardRightRail({ todayEvents }: { todayEvents: EconomicEvent[] }) {
   return (
@@ -42,13 +49,32 @@ function DashboardRightRail({ todayEvents }: { todayEvents: EconomicEvent[] }) {
   );
 }
 
-async function getDashboardTrades(supabase: SupabaseClient, userId: string) {
+async function getTradingAccounts(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase
+    .from("trading_accounts")
+    .select("id,user_id,provider,account_name,account_type,currency,status,metadata,created_at,updated_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+
+  if (error) return [];
+  return (data ?? []) as TradingAccount[];
+}
+
+async function getDashboardTrades(supabase: SupabaseClient, userId: string, selectedAccount: string) {
+  let query = supabase
     .from("trades")
     .select("id,user_id,trading_account_id,source,symbol,market_type,direction,entry_price,exit_price,stop_loss,take_profit,position_size,risk_percent,rr,pnl,fees,result,session,strategy_id,opened_at,closed_at,created_at,updated_at")
     .eq("user_id", userId)
     .order("opened_at", { ascending: false })
     .limit(120);
+
+  if (selectedAccount === MANUAL_ACCOUNT_VALUE) {
+    query = query.eq("source", "manual");
+  } else if (selectedAccount !== "all") {
+    query = query.eq("trading_account_id", selectedAccount);
+  }
+
+  const { data, error } = await query;
 
   if (error) return [];
   return (data ?? []) as Trade[];
@@ -162,7 +188,8 @@ async function getRulesPreviewContext(supabase: SupabaseClient, userId: string) 
   };
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await searchParams;
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
     return (
@@ -182,8 +209,10 @@ export default async function DashboardPage() {
   }
 
   const userId = userData.user.id;
+  const accounts = await getTradingAccounts(supabase, userId);
+  const selectedAccount = normalizeSelectedAccount(params.account, accounts);
   const [trades, latestReview, todayEvents, latestBacktest, latestSignals, psychologyRows, latestDisciplineScore, latestRevengeEvent, rulesPreview] = await Promise.all([
-    getDashboardTrades(supabase, userId),
+    getDashboardTrades(supabase, userId, selectedAccount),
     getLatestAIReview(supabase, userId),
     getTodayEconomicEvents(supabase),
     getLatestBacktest(supabase, userId),
@@ -196,11 +225,20 @@ export default async function DashboardPage() {
   const dashboardStats = calculateDashboardStats(trades);
 
   return (
-    <AppShell rightRail={<DashboardRightRail todayEvents={todayEvents} />} user={userData.user}>
+    <AppShell
+      rightRail={<DashboardRightRail todayEvents={todayEvents} />}
+      user={userData.user}
+      accountSelector={<AccountSelector accounts={accounts} selectedAccount={selectedAccount} basePath="/dashboard" />}
+    >
       <div className="min-w-0 space-y-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {dashboardStats.metricCards.map((metric) => <MetricCard key={metric.label} {...metric} />)}
         </div>
+        {!trades.length ? (
+          <GlassCard className="p-4 text-sm leading-6 text-zinc-400">
+            No trading data yet. Add a manual trade or connect an import source.
+          </GlassCard>
+        ) : null}
         <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-12">
           <EquityCurveCard trades={trades} />
           <MarketsCard />

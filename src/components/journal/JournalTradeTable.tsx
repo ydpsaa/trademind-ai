@@ -8,6 +8,7 @@ import type { Trade } from "@/lib/trading/types";
 
 interface JournalTradeTableProps {
   trades: Trade[];
+  emptyText?: string;
 }
 
 function resultTone(result: string | null) {
@@ -17,11 +18,11 @@ function resultTone(result: string | null) {
   return "neutral";
 }
 
-export function JournalTradeTable({ trades }: JournalTradeTableProps) {
+export function JournalTradeTable({ trades, emptyText = "No trades found for this period." }: JournalTradeTableProps) {
   if (!trades.length) {
     return (
       <GlassCard className="p-8 text-center">
-        <h2 className="text-lg font-semibold">No trades found for this period.</h2>
+        <h2 className="text-lg font-semibold">{emptyText}</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-400">Manual trades will appear here with performance stats, execution notes, and trade detail links.</p>
         <Link href="/journal/new" className="mt-6 inline-grid h-10 place-items-center rounded-xl border border-white/10 bg-white/12 px-4 text-sm font-medium">
           Add your first trade

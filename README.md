@@ -93,6 +93,7 @@ For an existing Supabase database, apply SQL in this order:
 6. `src/db/patches/006_signals.sql`
 7. `src/db/patches/007_integration_connections.sql`
 8. `src/db/patches/008_product_data_model_upgrade.sql`
+9. `src/db/patches/009_trading_accounts_readiness.sql`
 
 Stage 4.1 adds optional AI review metadata columns. For an existing database, apply this patch in Supabase SQL Editor:
 
@@ -148,6 +149,14 @@ src/db/patches/007_integration_connections.sql
 ```
 
 The `integration_connections` table stores user-owned connection metadata only: provider, status, mode, safe metadata, and last checked time. It must not store raw API keys.
+
+Stage 0.0.3 adds trading account readiness. Apply this patch in existing databases:
+
+```bash
+src/db/patches/009_trading_accounts_readiness.sql
+```
+
+The account selector is user-scoped. It shows All Accounts, a logical Manual Journal account, and future user-owned CSV, Bybit, OKX, or MetaTrader accounts after read-only/import stages are enabled. No fake balances or fake broker accounts are displayed.
 
 Stage 10.1 separates user-facing trading connections from internal platform services:
 

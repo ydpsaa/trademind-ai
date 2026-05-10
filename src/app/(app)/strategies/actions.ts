@@ -64,7 +64,7 @@ function rulesFromForm(formData: FormData): StrategyRules {
 async function currentUserClient() {
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
-    return { error: "Supabase is not configured." };
+    return { error: "Data service is not configured." };
   }
 
   const { data: userData, error: userError } = await supabase.auth.getUser();

@@ -6,7 +6,7 @@ Stage 0.0.3 is a global account/data architecture readiness task. It is not Stag
 
 - A user profile identifies the authenticated TradeMind AI user.
 - A trading account represents a source of trades owned by that user.
-- Every user-owned trading record remains scoped by `user_id` and protected by Supabase RLS.
+- Every user-owned trading record remains scoped by `user_id` and protected by data isolation policies.
 
 ## Manual Journal Account
 

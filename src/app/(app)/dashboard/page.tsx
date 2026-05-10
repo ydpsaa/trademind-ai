@@ -195,7 +195,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (!supabase) {
     return (
       <AppShell>
-        <GlassCard className="p-4 text-sm text-rose-200">Supabase is not configured.</GlassCard>
+        <GlassCard className="p-4 text-sm text-rose-200">Data service is not configured.</GlassCard>
       </AppShell>
     );
   }

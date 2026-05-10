@@ -54,7 +54,7 @@ export function AuthDebugPanel() {
           initialized: false,
           session: false,
           email: null,
-          error: error instanceof Error ? error.message : "Unable to initialize Supabase client.",
+          error: error instanceof Error ? error.message : "Unable to initialize auth client.",
         });
       }
     }
@@ -72,14 +72,14 @@ export function AuthDebugPanel() {
       <div className="relative grid min-h-screen place-items-center px-4 py-10">
         <GlassCard className="w-full max-w-xl p-6">
           <h1 className="text-2xl font-semibold tracking-tight">Auth Debug</h1>
-          <p className="mt-2 text-sm text-zinc-400">Local Supabase auth status. Keys are not displayed.</p>
+          <p className="mt-2 text-sm text-zinc-400">Local auth status. Keys are not displayed.</p>
           <div className="mt-6 divide-y divide-white/10 rounded-2xl border border-white/10">
             {[
-              ["Supabase client initialized", state.initialized ? "yes" : "no"],
+              ["Auth client initialized", state.initialized ? "yes" : "no"],
               ["Current session exists", state.session ? "yes" : "no"],
               ["Current user email", state.email ?? "none"],
-              ["NEXT_PUBLIC_SUPABASE_URL present", hasUrl ? "yes" : "no"],
-              ["NEXT_PUBLIC_SUPABASE_ANON_KEY present", hasAnonKey ? "yes" : "no"],
+              ["Service endpoint configured", hasUrl ? "yes" : "no"],
+              ["Client configuration present", hasAnonKey ? "yes" : "no"],
             ].map(([label, value]) => (
               <div key={label} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
                 <span className="text-zinc-400">{label}</span>

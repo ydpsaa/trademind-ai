@@ -29,14 +29,14 @@ function formatMode(mode: ConnectionMode) {
 
 function connectionPatchMessage(message: string) {
   if (message.includes("integration_connections") || message.includes("schema cache") || message.includes("does not exist")) {
-    return "Integration connections table is not applied yet. Run src/db/patches/007_integration_connections.sql in Supabase SQL Editor.";
+    return "Connection status storage is not ready yet. Apply the connection metadata setup, then refresh this page.";
   }
   return message;
 }
 
 async function getConnectionContext() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { records: [], error: "Supabase is not configured.", calendarReadable: false, sessionPresent: false, isAdmin: false, user: null };
+  if (!supabase) return { records: [], error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, isAdmin: false, user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return { records: [], error: "You must be signed in to view connections.", calendarReadable: false, sessionPresent: false, isAdmin: false, user: null };
@@ -67,9 +67,9 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         mode: "configured",
         label: "connected",
         metadata: {
-          publicUrlPresent: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-          anonKeyPresent: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-          sessionPresent: context.sessionPresent,
+          serviceEndpoint: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+          clientConfiguration: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+          authSession: context.sessionPresent,
         },
       };
     }
@@ -82,8 +82,8 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         mode: connected ? "configured" : "fallback",
         label: connected ? "connected" : "fallback",
         metadata: {
-          aiKeyConfigured: connected,
-          provider: process.env.AI_PROVIDER || "openai",
+          aiServiceConfigured: connected,
+          aiMode: process.env.AI_PROVIDER ? "configured" : "fallback",
           model: process.env.OPENAI_MODEL || "local-rules",
         },
       };

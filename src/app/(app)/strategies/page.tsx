@@ -17,7 +17,7 @@ interface StrategiesPageProps {
 
 async function getStrategies() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { strategies: [], error: "Supabase is not configured.", user: null };
+  if (!supabase) return { strategies: [], error: "Data service is not configured.", user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return { strategies: [], error: "You must be signed in to view strategies.", user: null };
@@ -59,7 +59,7 @@ export default async function StrategiesPage({ searchParams }: StrategiesPagePro
             </div>
             <div>
               <h2 className="text-xl font-semibold">Strategy Builder</h2>
-              <p className="mt-1 text-sm text-zinc-500">Rules stored in Supabase and ready for future Backtest Lab and Signals.</p>
+              <p className="mt-1 text-sm text-zinc-500">Rules are stored securely and ready for future Backtest Lab and Signals.</p>
             </div>
           </div>
           <Link href="/strategies/new" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/15 px-4 text-sm font-semibold text-white transition hover:bg-white/20">

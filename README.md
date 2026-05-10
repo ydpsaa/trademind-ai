@@ -161,10 +161,10 @@ The account selector is user-scoped. It shows All Accounts, a logical Manual Jou
 Stage 10.1 separates user-facing trading connections from internal platform services:
 
 - `/connections` shows only exchange, broker, charting, market data, and future automation integrations.
-- Supabase is internal infrastructure, not a user trading connection.
+- Database Service is internal infrastructure, not a user trading connection.
 - AI Service is platform-managed and uses local rules fallback when no server-side AI key is configured.
-- Economic Calendar is an internal data service used for calendar views and news-risk context.
-- `/system-status` is admin-only and shows internal service status for Supabase, AI Service, Economic Calendar, and simulated engines without exposing secrets.
+- Calendar Data is an internal data service used for calendar views and news-risk context.
+- `/system-status` is admin-only and shows internal service status for Database Service, AI Service, Calendar Data, and disabled engine states without exposing secrets.
 
 Broker integrations are not live yet. Bybit and OKX are planned to start as read-only import connections before any execution features are considered. Never create exchange API keys with withdrawal permissions for TradeMind AI. Future API keys should be handled server-side or through a dedicated secrets workflow, not displayed in the UI.
 
@@ -239,18 +239,18 @@ Implemented:
 - Liquid Glass app shell
 - Protected application routes
 - Email/password login and registration
-- Supabase client helpers
-- Supabase database foundation schema
+- Database client helpers
+- Secure data foundation schema
 - Real-data-ready dashboard and product pages
-- Supabase-backed manual journal
+- Secure manual journal
 - Rules-based AI trade reviews
 - Optional AI review generation with local fallback
-- Supabase-backed economic calendar foundation with sample/manual events
-- Supabase-backed Strategy Builder with reusable `rules_json` playbooks
-- Supabase-backed Backtest Lab foundation, disabled for real performance until historical market data is connected
+- Calendar Data foundation with sample/manual events
+- Strategy Builder with reusable `rules_json` playbooks
+- Backtest Lab foundation, disabled for real performance until historical market data is connected
 - Market Scanner foundation, disabled until Market Data Feed is connected
-- Supabase-backed Signals foundation, disabled until Market Data Feed and strategy validation are connected
-- Supabase-backed Connections foundation for safe integration status metadata
+- Signals foundation, disabled until Market Data Feed and strategy validation are connected
+- Connections foundation for safe integration status metadata
 
 Not implemented yet:
 

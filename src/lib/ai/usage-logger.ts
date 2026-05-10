@@ -11,7 +11,7 @@ export async function logAIUsage(input: AIUsageLogInput) {
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) {
-      console.warn("[ai-usage] Supabase is not configured; usage log skipped.");
+      console.warn("[ai-usage] Data service is not configured; usage log skipped.");
       return { success: false };
     }
 

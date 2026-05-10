@@ -33,7 +33,7 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
   let user: User | null = null;
 
   if (!supabase) {
-    error = "Supabase is not configured.";
+    error = "Data service is not configured.";
   } else {
     const { data: userData, error: userError } = await supabase.auth.getUser();
 

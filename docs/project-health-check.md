@@ -34,7 +34,7 @@ Run this checklist before deployment and after important changes.
 ## Economic Calendar
 
 - `/calendar` renders.
-- Events load from Supabase.
+- Calendar Data loads when configured.
 - Filters work.
 - Trade detail news context renders.
 
@@ -76,12 +76,12 @@ Run this checklist before deployment and after important changes.
 ## Connections
 
 - `/connections` renders.
-- `/connections/supabase` renders.
-- `/connections/ai-provider` renders.
+- `/system-status` renders for admin users.
+- Internal service routes are admin-only.
 - `/connections/bybit` renders.
-- Test Status works for Supabase.
+- Test Status works for Database Service in System Status.
 - Test Status works for AI Service.
-- Test Status works for Economic Calendar.
+- Test Status works for Calendar Data.
 
 ## Security
 

@@ -18,7 +18,7 @@ interface SignalsPageProps {
 
 async function getSignals() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { signals: [], error: "Supabase is not configured.", user: null };
+  if (!supabase) return { signals: [], error: "Data service is not configured.", user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return { signals: [], error: "You must be signed in to view signals.", user: null };

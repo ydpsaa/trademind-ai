@@ -20,7 +20,7 @@ function formatRuleType(type: string) {
 
 async function getRulesContext() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { rules: [], checks: [], error: "Supabase is not configured.", user: null };
+  if (!supabase) return { rules: [], checks: [], error: "Data service is not configured.", user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return { rules: [], checks: [], error: "You must be signed in.", user: null };

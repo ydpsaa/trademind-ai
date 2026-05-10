@@ -1,6 +1,7 @@
 import { Bot, CheckCircle2, CircleAlert, Gauge, Sparkles } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { GenerateAIReviewButton } from "@/components/journal/GenerateAIReviewButton";
+import { formatAIModelLabel } from "@/lib/ai/display";
 import type { AITradeReview } from "@/lib/trading/types";
 
 interface AIReviewCardProps {
@@ -79,6 +80,7 @@ export function AIReviewCard({ review, tradeId }: AIReviewCardProps) {
   }
 
   const totalScore = scoreValue(review.total_score);
+  const modelLabel = formatAIModelLabel(review.model);
 
   return (
     <GlassCard className="p-4 md:p-6">
@@ -90,7 +92,7 @@ export function AIReviewCard({ review, tradeId }: AIReviewCardProps) {
             </div>
           <div>
             <h2 className="text-base font-semibold">AI Trade Review</h2>
-              <p className="mt-1 text-sm text-zinc-500">{sourceLabel(review)}{review.model ? ` · ${review.model}` : ""}</p>
+              <p className="mt-1 text-sm text-zinc-500">{sourceLabel(review)}{modelLabel ? ` · ${modelLabel}` : ""}</p>
               <p className="mt-1 text-xs text-zinc-500">{hasNewsContext(review) ? "News context included" : "No news context detected"}</p>
             </div>
           </div>

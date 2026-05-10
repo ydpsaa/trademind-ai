@@ -3,6 +3,7 @@ import { Brain, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { formatAIModelLabel } from "@/lib/ai/display";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/trading/format";
 import type { AITradeReview } from "@/lib/trading/types";
@@ -61,6 +62,7 @@ export default async function AiAnalysisPage() {
           <div className="grid gap-4 xl:grid-cols-2">
             {reviews.map((review) => {
               const trade = review.trades;
+              const modelLabel = formatAIModelLabel(review.model);
 
               return (
                 <GlassCard key={review.id} className="p-4 md:p-5">
@@ -80,7 +82,7 @@ export default async function AiAnalysisPage() {
                       </div>
                       <p className="mt-2 text-xs text-zinc-500">
                         {formatDateTime(review.created_at)}
-                        {review.model ? ` · ${review.model}` : ""}
+                        {modelLabel ? ` · ${modelLabel}` : ""}
                       </p>
                     </div>
                     <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full border-[7px] border-white/15 border-t-white bg-black/20">

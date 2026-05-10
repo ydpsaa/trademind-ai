@@ -22,7 +22,7 @@ function configuredModel() {
 
 function connectionPatchMessage(message: string) {
   if (message.includes("integration_connections") || message.includes("schema cache") || message.includes("does not exist")) {
-    return "Integration connections table is not applied yet. Run src/db/patches/007_integration_connections.sql in Supabase SQL Editor.";
+    return "Connection status storage is not ready yet. Apply the connection metadata setup, then refresh this page.";
   }
 
   return formatSupabaseError(message);
@@ -37,7 +37,7 @@ async function upsertConnectionStatus(
   metadata: Record<string, unknown>,
 ) {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { error: "Supabase is not configured." };
+  if (!supabase) return { error: "Data service is not configured." };
 
   const checkedAt = new Date().toISOString();
   const payload = {
@@ -61,7 +61,7 @@ async function upsertConnectionStatus(
 
 async function getAuthenticatedContext() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { error: "Supabase is not configured." };
+  if (!supabase) return { error: "Data service is not configured." };
 
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return { error: "You must be signed in to check connections." };
@@ -87,16 +87,16 @@ export async function checkConnectionStatusAction(_state: ConnectionActionState,
     status = hasSupabasePublicEnv() && Boolean(context.user.id) ? "connected" : "error";
     mode = "configured";
     metadata = {
-      publicUrlPresent: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-      anonKeyPresent: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-      sessionPresent: Boolean(context.user.id),
+      serviceEndpoint: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+      clientConfiguration: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+      authSession: Boolean(context.user.id),
     };
   } else if (providerId === "ai-provider") {
     status = hasOpenAIKey() ? "connected" : "fallback";
     mode = hasOpenAIKey() ? "configured" : "fallback";
     metadata = {
-      aiKeyConfigured: hasOpenAIKey(),
-      provider: process.env.AI_PROVIDER || "openai",
+      aiServiceConfigured: hasOpenAIKey(),
+      aiMode: process.env.AI_PROVIDER ? "configured" : "fallback",
       model: configuredModel(),
     };
   } else if (providerId === "economic-calendar") {

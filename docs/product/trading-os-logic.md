@@ -78,7 +78,7 @@ The Dashboard now includes a compact Trading OS summary. It answers:
 - Is rule discipline available?
 - Is account data manual or connected?
 
-The summary uses only current user data from Supabase and local context helpers.
+The summary uses only current user data from the secure data layer and local context helpers.
 
 ## Journal Detail
 

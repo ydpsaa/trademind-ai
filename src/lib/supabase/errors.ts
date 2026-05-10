@@ -4,7 +4,7 @@ export function formatSupabaseError(message: string) {
     message.includes("Could not find the table") ||
     message.includes("relation") && message.includes("does not exist")
   ) {
-    return "Database schema is not applied yet. Run src/db/schema.sql in Supabase Dashboard -> SQL Editor, then refresh this page.";
+    return "Data setup is not ready yet. Apply the required data setup, then refresh this page.";
   }
 
   return message;

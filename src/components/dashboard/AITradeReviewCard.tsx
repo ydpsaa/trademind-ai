@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { formatAIModelLabel } from "@/lib/ai/display";
 import type { AITradeReview } from "@/lib/trading/types";
 
 interface AITradeReviewCardProps {
@@ -22,6 +23,7 @@ function sourceLabel(source: string | null | undefined) {
 
 export function AITradeReviewCard({ className = "lg:col-span-3 2xl:col-span-3", review }: AITradeReviewCardProps) {
   const trade = review?.trades;
+  const modelLabel = formatAIModelLabel(review?.model);
 
   return (
     <GlassCard className={`p-4 ${className}`}>
@@ -38,7 +40,7 @@ export function AITradeReviewCard({ className = "lg:col-span-3 2xl:col-span-3", 
                 ) : null}
                 <StatusBadge tone={sourceTone(review.generation_source)}>{sourceLabel(review.generation_source)}</StatusBadge>
               </div>
-              {review.model ? <p className="mt-1 text-xs text-zinc-500">{review.model}</p> : null}
+              {modelLabel ? <p className="mt-1 text-xs text-zinc-500">{modelLabel}</p> : null}
               <p className="mt-3 line-clamp-3 text-sm leading-6 text-zinc-400">{review.summary}</p>
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-zinc-500">
                 <span>Risk {score(review.risk_score)}</span>

@@ -103,7 +103,7 @@ export async function generateAITradeReview(input: GenerateAITradeReviewInput): 
 
   const review = validateTradeReviewPayload(parsed);
   if (!review) {
-    throw new Error("AI response did not match the review schema.");
+    throw new Error("AI response did not match the expected review format.");
   }
 
   return {

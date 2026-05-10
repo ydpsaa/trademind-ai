@@ -57,7 +57,7 @@ export async function createManualTradeAction(_state: TradeActionState, formData
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) {
-      return { error: "Supabase is not configured." };
+      return { error: "Data service is not configured." };
     }
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -246,7 +246,7 @@ export async function deleteTradeAction(_state: TradeActionState, formData: Form
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
-    return { error: "Supabase is not configured." };
+    return { error: "Data service is not configured." };
   }
 
   const { data: userData, error: userError } = await supabase.auth.getUser();

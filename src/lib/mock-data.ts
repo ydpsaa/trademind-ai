@@ -82,4 +82,4 @@ export const signals = [
   { symbol: "EURUSD", direction: "Short", confidence: "68%", reasoning: "Liquidity sweep into premium resistance." },
 ];
 
-export const connections = ["Supabase", "Grok / xAI", "Bybit", "OKX", "MetaTrader later", "Market Data API"];
+export const connections = ["Database Service", "AI Service", "Bybit", "OKX", "MetaTrader later", "Market Data Feed"];

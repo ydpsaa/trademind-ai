@@ -26,7 +26,7 @@ export default async function NewTradePage() {
   const { rules, user } = await getActiveRules();
 
   return (
-    <AppShell title="Add Trade" subtitle="Save a manual journal trade to your Supabase workspace." user={user}>
+    <AppShell title="Add Trade" subtitle="Save a manual journal trade to your TradeMind workspace." user={user}>
       <AddTradeForm rules={rules} />
     </AppShell>
   );

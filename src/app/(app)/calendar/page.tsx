@@ -34,7 +34,7 @@ function filterHref(range: CalendarRange, currency: CurrencyCode, impact: Impact
 
 function formatCalendarError(message: string) {
   if (message.includes("economic_events") || message.includes("schema cache") || message.includes("does not exist")) {
-    return "Economic calendar table is not applied yet. Run src/db/patches/002_economic_events.sql in Supabase SQL Editor, then refresh this page.";
+    return "Calendar Data is not ready yet. Apply the calendar data setup, then refresh this page.";
   }
 
   return formatSupabaseError(message);
@@ -64,7 +64,7 @@ async function getEvents(range: CalendarRange, currency: CurrencyCode, impact: I
   const period = getCalendarRange(range);
 
   if (!supabase) {
-    return { events: [], todayEvents: [], error: "Supabase is not configured.", user: null };
+    return { events: [], todayEvents: [], error: "Calendar Data is not configured.", user: null };
   }
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -105,6 +105,16 @@ async function getEvents(range: CalendarRange, currency: CurrencyCode, impact: I
   };
 }
 
+function getCalendarDataLabel(events: EconomicEvent[], error: string | null) {
+  if (error) return { label: "Calendar Data Unavailable", tone: "warning" as const };
+  if (!events.length) return { label: "Provider Not Connected", tone: "neutral" as const };
+
+  const sampleCount = events.filter((event) => event.source === "sample" || event.title.toLowerCase().startsWith("sample")).length;
+  if (sampleCount === events.length) return { label: "Sample Data", tone: "warning" as const };
+  if (events.some((event) => event.source === "provider")) return { label: "Calendar Data Active", tone: "positive" as const };
+  return { label: "Manual Calendar Data", tone: "positive" as const };
+}
+
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
   const params = await searchParams;
   const range = parseCalendarRange(params.range);
@@ -112,6 +122,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const impact = parseImpact(params.impact);
   const { events, todayEvents, error, user } = await getEvents(range, currency, impact);
   const groupedEvents = groupEventsByDay(events);
+  const calendarDataStatus = getCalendarDataLabel(events, error);
 
   return (
     <AppShell title="Economic Calendar" subtitle="Track high-impact macro events that may affect Forex, Gold, Crypto and Indices." user={user}>
@@ -167,7 +178,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-lg font-semibold">Scheduled Events</h2>
-                  <StatusBadge tone="positive">Supabase Events Active</StatusBadge>
+                  <StatusBadge tone={calendarDataStatus.tone}>{calendarDataStatus.label}</StatusBadge>
                 </div>
                 <p className="mt-1 text-sm text-zinc-500">{events.length} events found</p>
               </div>

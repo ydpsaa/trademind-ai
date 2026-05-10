@@ -13,7 +13,7 @@ interface TopbarProps {
 const pageChrome: Array<{ test: (pathname: string) => boolean; title: string; subtitle: string }> = [
   { test: (pathname) => pathname === "/" || pathname.startsWith("/dashboard"), title: "Dashboard", subtitle: "Your real trading data, readiness, and review loop." },
   { test: (pathname) => pathname === "/journal", title: "Journal", subtitle: "Track your trades, performance, and execution quality." },
-  { test: (pathname) => pathname === "/journal/new", title: "Add Trade", subtitle: "Save a manual journal trade to your Supabase workspace." },
+  { test: (pathname) => pathname === "/journal/new", title: "Add Trade", subtitle: "Save a manual journal trade to your TradeMind workspace." },
   { test: (pathname) => pathname.startsWith("/journal/"), title: "Trade Detail", subtitle: "Review trade context, checklist, psychology, news, and AI feedback." },
   { test: (pathname) => pathname.startsWith("/ai-analysis"), title: "AI Trade Analysis", subtitle: "AI trading coach reviews generated from your journal data." },
   { test: (pathname) => pathname.startsWith("/psychology"), title: "Psychology", subtitle: "Track emotions, discipline, and behavioral patterns behind your trades." },

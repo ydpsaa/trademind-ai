@@ -31,7 +31,7 @@ export async function upsertTradePsychologyAction(_state: PsychologyActionState,
     if (!tradeId) return { error: "Missing trade id." };
 
     const supabase = await createSupabaseServerClient();
-    if (!supabase) return { error: "Supabase is not configured." };
+    if (!supabase) return { error: "Data service is not configured." };
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) return { error: "You must be signed in." };

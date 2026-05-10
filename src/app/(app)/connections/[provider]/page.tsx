@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ConnectionStatusButton } from "@/components/connections/ConnectionStatusButton";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { formatAIModelLabel } from "@/lib/ai/display";
 import { isAdminUser } from "@/lib/auth/admin";
 import { connectionStatusTone, deriveRuntimeStatus, getProvider } from "@/lib/connections/connection-status";
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, IntegrationProvider, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
@@ -49,14 +50,14 @@ function formatMode(mode: ConnectionMode) {
 
 function patchMessage(message: string) {
   if (message.includes("integration_connections") || message.includes("schema cache") || message.includes("does not exist")) {
-    return "Integration connections table is not applied yet. Run src/db/patches/007_integration_connections.sql in Supabase SQL Editor.";
+    return "Connection status storage is not ready yet. Apply the connection metadata setup, then refresh this page.";
   }
   return message;
 }
 
 async function getConnectionRecord(provider: IntegrationProvider) {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { record: null, error: "Supabase is not configured.", calendarReadable: false, sessionPresent: false, user: null };
+  if (!supabase) return { record: null, error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return { record: null, error: "You must be signed in to view connection details.", calendarReadable: false, sessionPresent: false, user: null };
@@ -85,9 +86,9 @@ function resolvedStatus(provider: ProviderCard, record: IntegrationConnection | 
         status: context.sessionPresent && Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ? "connected" : "error",
         mode: "configured" as const,
         metadata: {
-          publicUrlPresent: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-          anonKeyPresent: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-          sessionPresent: context.sessionPresent,
+          serviceEndpoint: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+          clientConfiguration: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+          authSession: context.sessionPresent,
         },
       };
     }
@@ -99,8 +100,8 @@ function resolvedStatus(provider: ProviderCard, record: IntegrationConnection | 
         status: connected ? ("connected" as const) : ("fallback" as const),
         mode: connected ? ("configured" as const) : ("fallback" as const),
         metadata: {
-          aiKeyConfigured: connected,
-          provider: process.env.AI_PROVIDER || "openai",
+          aiServiceConfigured: connected,
+          aiMode: process.env.AI_PROVIDER ? "configured" : "fallback",
           model: process.env.OPENAI_MODEL || "local-rules",
         },
       };
@@ -117,6 +118,32 @@ function resolvedStatus(provider: ProviderCard, record: IntegrationConnection | 
   }
 
   return status;
+}
+
+function formatMetadataLabel(key: string) {
+  const labels: Record<string, string> = {
+    serviceEndpoint: "Service Endpoint",
+    clientConfiguration: "Client Configuration",
+    authSession: "Auth Session",
+    publicUrlPresent: "Service Endpoint",
+    anonKeyPresent: "Client Configuration",
+    sessionPresent: "Auth Session",
+    aiServiceConfigured: "AI Service",
+    aiKeyConfigured: "AI Service",
+    aiMode: "AI Mode",
+    provider: "AI Service",
+    model: "Model",
+    readable: "Readable",
+  };
+
+  return labels[key] ?? key.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " ");
+}
+
+function formatMetadataValue(key: string, value: unknown) {
+  if (key === "model") return formatAIModelLabel(String(value ?? "")) ?? "-";
+  if (key === "provider") return value ? "configured" : "-";
+  if (typeof value === "boolean") return value ? "yes" : "no";
+  return String(value ?? "-");
 }
 
 function DetailList({ title, items }: { title: string; items: string[] }) {
@@ -143,8 +170,8 @@ function MetadataCard({ metadata }: { metadata: Record<string, unknown> }) {
         {entries.length ? (
           entries.map(([key, value]) => (
             <div key={key} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm">
-              <span className="text-zinc-500">{key}</span>
-              <span className="max-w-[60%] truncate text-right text-zinc-200">{typeof value === "boolean" ? (value ? "yes" : "no") : String(value ?? "-")}</span>
+              <span className="text-zinc-500">{formatMetadataLabel(key)}</span>
+              <span className="max-w-[60%] truncate text-right text-zinc-200">{formatMetadataValue(key, value)}</span>
             </div>
           ))
         ) : (
@@ -252,7 +279,7 @@ export default async function ConnectionDetailPage({ params }: ConnectionDetailP
               <ShieldCheck className="h-4 w-4 text-zinc-300" />
             </div>
             <p className="text-sm leading-6 text-zinc-400">
-              This connection page only checks safe configuration presence and table readability. It does not call broker trading endpoints, place orders, reveal API keys, or request withdrawal permissions.
+              This connection page only checks safe configuration presence and service readiness. It does not call broker trading endpoints, place orders, reveal API keys, or request withdrawal permissions.
             </p>
           </div>
         </GlassCard>

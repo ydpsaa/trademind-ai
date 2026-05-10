@@ -12,15 +12,15 @@ export function createSupabaseBrowserClient() {
   const supabaseAnonKey = getSupabaseAnonKey();
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Supabase browser client is missing public environment variables.");
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    console.error("Auth client is missing public configuration.");
+    throw new Error("Missing auth client configuration.");
   }
 
   try {
     new URL(supabaseUrl);
   } catch {
-    console.error("Supabase browser client has an invalid project URL.");
-    throw new Error("Invalid NEXT_PUBLIC_SUPABASE_URL.");
+    console.error("Auth client has an invalid service endpoint.");
+    throw new Error("Invalid auth service endpoint.");
   }
 
   browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey);

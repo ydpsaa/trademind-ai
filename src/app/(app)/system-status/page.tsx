@@ -5,6 +5,7 @@ import { ConnectionStatusButton } from "@/components/connections/ConnectionStatu
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { formatAIModelLabel } from "@/lib/ai/display";
 import type { AIUsageLog } from "@/lib/ai/usage-types";
 import { isAdminUser } from "@/lib/auth/admin";
 import { connectionStatusTone, deriveRuntimeStatus, systemServiceProviders } from "@/lib/connections/connection-status";
@@ -33,7 +34,7 @@ function formatMode(mode: ConnectionMode) {
 
 function patchMessage(message: string) {
   if (message.includes("integration_connections") || message.includes("schema cache") || message.includes("does not exist")) {
-    return "Integration connections table is not applied yet. Run src/db/patches/007_integration_connections.sql in Supabase SQL Editor.";
+    return "Connection status storage is not ready yet. Apply the connection metadata setup, then refresh this page.";
   }
   return message;
 }
@@ -98,7 +99,7 @@ async function getSystemContext() {
     aiUsageSummary: {
       usage,
       lastSource: latestUsage?.generation_source === "ai" ? "AI" : latestUsage?.generation_source === "rules" ? "Local Rules" : "None",
-      lastModel: latestUsage?.model ?? "None",
+      lastModel: formatAIModelLabel(latestUsage?.model) ?? "None",
       estimatedCostThisMonth,
     },
   };
@@ -116,8 +117,9 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         mode: "configured",
         label: connected ? "connected" : "error",
         metadata: {
-          database: connected ? "configured" : "not configured",
-          auth: context.sessionPresent ? "active session" : "no session",
+          secureUserDatabase: connected ? "configured" : "not configured",
+          adminSession: context.sessionPresent ? "active session" : "no session",
+          dataIsolation: "enabled",
         },
       };
     }
@@ -130,8 +132,8 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         mode: connected ? "configured" : "fallback",
         label: connected ? "connected" : "fallback",
         metadata: {
-          service: connected ? "configured" : "local fallback",
-          model: process.env.OPENAI_MODEL || "local-rules",
+          aiService: connected ? "configured" : "local fallback",
+          reviewModel: process.env.OPENAI_MODEL || "local-rules",
         },
       };
     }
@@ -143,12 +145,44 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         status: context.calendarReadable && !sampleOnly ? "connected" : context.calendarReadable ? "fallback" : "not_connected",
         mode: context.calendarSource === "not_connected" ? "safe_setup" : "configured",
         label: context.calendarSource,
-        metadata: { dataSource: context.calendarSource },
+        metadata: { calendarData: context.calendarSource },
       };
     }
   }
 
   return stored;
+}
+
+function formatMetadataLabel(key: string) {
+  const labels: Record<string, string> = {
+    publicUrlPresent: "Service Endpoint",
+    anonKeyPresent: "Client Configuration",
+    sessionPresent: "Admin Session",
+    secureUserDatabase: "Secure User Database",
+    database: "Secure User Database",
+    auth: "Auth Session",
+    adminSession: "Admin Session",
+    dataIsolation: "Data Isolation",
+    service: "AI Service",
+    aiService: "AI Service",
+    provider: "AI Service",
+    model: "Model",
+    reviewModel: "Model",
+    dataSource: "Calendar Data",
+    calendarData: "Calendar Data",
+    readable: "Readable",
+    count: "Records Available",
+    sampleOnly: "Sample Data",
+  };
+
+  return labels[key] ?? key.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " ");
+}
+
+function formatMetadataValue(key: string, value: unknown) {
+  if (key === "model" || key === "reviewModel") return formatAIModelLabel(String(value ?? "")) ?? "-";
+  if (key === "provider") return value ? "configured" : "-";
+  if (typeof value === "boolean") return value ? "yes" : "no";
+  return String(value ?? "-");
 }
 
 function MetadataList({ metadata }: { metadata: Record<string, unknown> }) {
@@ -159,8 +193,8 @@ function MetadataList({ metadata }: { metadata: Record<string, unknown> }) {
     <div className="mt-3 grid gap-2">
       {entries.map(([key, value]) => (
         <div key={key} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs">
-          <span className="text-zinc-500">{key}</span>
-          <span className="max-w-[58%] truncate text-right text-zinc-200">{typeof value === "boolean" ? (value ? "yes" : "no") : String(value ?? "-")}</span>
+          <span className="text-zinc-500">{formatMetadataLabel(key)}</span>
+          <span className="max-w-[58%] truncate text-right text-zinc-200">{formatMetadataValue(key, value)}</span>
         </div>
       ))}
     </div>
@@ -328,7 +362,7 @@ export default async function SystemStatusPage() {
         <GlassCard className="border-white/10 bg-white/[0.04] p-4">
           <h2 className="text-sm font-semibold text-white">Data isolation</h2>
           <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-400">
-            User data is isolated by Supabase Auth user ID and protected with Row Level Security. Trades, strategies, backtests, signals, AI reviews, and connection metadata are scoped to the current authenticated user.
+            User data is isolated by authenticated user identity and protected with data isolation policies. Trades, strategies, backtests, signals, AI reviews, and connection metadata are scoped to the current signed-in user.
           </p>
         </GlassCard>
       </div>

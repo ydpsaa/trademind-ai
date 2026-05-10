@@ -16,7 +16,7 @@ interface BacktestLabPageProps {
 
 async function getBacktestLabData() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { strategies: [], backtests: [], error: "Supabase is not configured.", user: null };
+  if (!supabase) return { strategies: [], backtests: [], error: "Data service is not configured.", user: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return { strategies: [], backtests: [], error: "You must be signed in to view Backtest Lab.", user: null };

@@ -44,6 +44,9 @@ Use `PageLoadingShell` for route-level loading states and `GlassSkeleton` for lo
 - softly pulsing
 - structurally similar to the final page
 - lightweight enough to render immediately
+- scoped to the main content area during authenticated navigation
+
+Route `loading.tsx` files must never render a fake app frame, fake sidebar, fake topbar, or fake right rail. The persistent `AppShell` owns the real Sidebar and Topbar, so normal route transitions should keep those surfaces visible and show only `MainContentLoading` in the page content slot.
 
 ## Chart Guidance
 
@@ -71,5 +74,6 @@ Protected app routes live under a shared route-group layout. The layout renders 
 - `src/app/(app)/layout.tsx` owns the persistent shell and authenticated user context.
 - Page-level `AppShell` calls are content wrappers only; they no longer render the Sidebar, Topbar, or background shell.
 - Page `loading.tsx` files live under the protected route group, so loading skeletons replace only page content inside the persistent shell.
+- `src/components/layout/MainContentLoading.tsx` is the only loading surface used by authenticated route loading states.
 - Keep page-specific data fetching in pages, not in Sidebar or Topbar.
 - Use `router.refresh()` only after mutations that need fresh server data, not for ordinary navigation.

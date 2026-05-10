@@ -6,11 +6,18 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getImpactBadgeVariant } from "@/lib/calendar/filters";
 import { getNearbyEconomicEventsForTrade, getNewsRiskLevel, getNewsRiskSummary, type NearbyEconomicEvent } from "@/lib/calendar/news-risk";
+import type { TradingAccount } from "@/lib/accounts/types";
 import type { EconomicEvent } from "@/lib/calendar/types";
+import type { DisciplineScore } from "@/lib/discipline/types";
 import { formatEmotion } from "@/lib/psychology/emotions";
 import type { TradePsychology } from "@/lib/psychology/types";
+import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
+import type { Strategy } from "@/lib/strategies/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { buildTradeContext } from "@/lib/trading-os/context-builder";
+import { calculateTradeReadiness } from "@/lib/trading-os/readiness";
+import type { TradingOSContext } from "@/lib/trading-os/types";
 import { formatDateTime, formatNumber } from "@/lib/trading/format";
 import { formatMoney } from "@/lib/trading/stats";
 import type { AITradeReview, Trade, TradeJournalEntry } from "@/lib/trading/types";
@@ -40,6 +47,45 @@ function formatEventTime(value: string) {
     minute: "2-digit",
     hour12: false,
   }).format(new Date(value));
+}
+
+function contextTone(status: ReturnType<typeof calculateTradeReadiness>["status"]) {
+  if (status === "allowed") return "positive";
+  if (status === "blocked") return "negative";
+  if (status === "caution") return "warning";
+  return "neutral";
+}
+
+function TradeContextCard({ context, hasReview }: { context: TradingOSContext; hasReview: boolean }) {
+  const readiness = calculateTradeReadiness(context);
+  const checklist = context.rules.adherence === null ? "No checklist recorded" : `${context.rules.adherence}% adherence`;
+
+  return (
+    <GlassCard className="p-4 md:p-6">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-base font-semibold">Trade Context</h2>
+          <p className="mt-1 text-sm text-zinc-500">Connected account, strategy, checklist, psychology, news, and review context for this trade.</p>
+        </div>
+        <StatusBadge tone={contextTone(readiness.status)}>
+          {readiness.status === "not_enough_data" ? "Not enough data" : `${readiness.score}/100 ${readiness.status}`}
+        </StatusBadge>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <DetailRow label="Account / Source" value={`${context.account.account_name} (${context.account.provider})`} />
+        <DetailRow label="Strategy" value={context.strategy.name || "No strategy linked"} />
+        <DetailRow label="Checklist" value={checklist} />
+        <DetailRow label="Psychology" value={context.psychology.risk_level === "unknown" ? "No psychology data" : `${context.psychology.risk_level} risk`} />
+        <DetailRow label="News Risk" value={context.news.risk_level === "Unknown" ? "No news context" : `${context.news.risk_level} risk`} />
+        <DetailRow label="Discipline Score" value={context.discipline.total_score == null ? "No saved score" : `${Math.round(context.discipline.total_score)}/100`} />
+        <DetailRow label="AI Review" value={hasReview ? "Review generated" : "No review yet"} />
+        <DetailRow label="Market Data" value="Not connected" />
+      </div>
+      <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-400">
+        {readiness.main_risks[0]} {readiness.recommendations[0]}
+      </div>
+    </GlassCard>
+  );
 }
 
 export default async function TradeDetailPage({ params }: TradeDetailPageProps) {
@@ -85,7 +131,7 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
       .order("event_time", { ascending: true });
   }
 
-  const [reviewResult, ruleCheckResult, eventResult] = await Promise.all([
+  const [reviewResult, ruleCheckResult, eventResult, accountResult, strategyResult, disciplineResult, revengeResult] = await Promise.all([
     supabase
       .from("ai_trade_reviews")
       .select("id,trade_id,user_id,total_score,structure_score,liquidity_score,ict_score,risk_score,news_score,psychology_score,summary,strengths,weaknesses,recommendations,generation_source,model,created_at")
@@ -101,6 +147,35 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
       .eq("user_id", userData.user.id)
       .order("created_at", { ascending: true }),
     eventQuery ?? Promise.resolve({ data: [], error: null }),
+    trade.trading_account_id
+      ? supabase
+          .from("trading_accounts")
+          .select("id,user_id,provider,account_name,account_type,currency,status,metadata,created_at,updated_at")
+          .eq("id", trade.trading_account_id)
+          .eq("user_id", userData.user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    trade.strategy_id
+      ? supabase
+          .from("strategies")
+          .select("id,user_id,name,description,rules_json,is_active,created_at,updated_at")
+          .eq("id", trade.strategy_id)
+          .eq("user_id", userData.user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    supabase
+      .from("discipline_scores")
+      .select("id,user_id,period_type,period_start,period_end,rule_adherence,risk_control,emotion_balance,revenge_avoidance,time_discipline,total_score,created_at")
+      .eq("user_id", userData.user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("revenge_events")
+      .select("id,user_id,previous_trade_id,next_trade_id,revenge_score,gap_minutes,size_increase_ratio,triggered_rules,created_at")
+      .eq("user_id", userData.user.id)
+      .or(`previous_trade_id.eq.${trade.id},next_trade_id.eq.${trade.id}`)
+      .limit(5),
   ]);
 
   const review = (reviewResult.data ?? null) as AITradeReview | null;
@@ -108,6 +183,17 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
   const passedRuleCount = ruleChecks.filter((check) => check.passed === true).length;
   const ruleAdherence = ruleChecks.length ? Math.round((passedRuleCount / ruleChecks.length) * 100) : 0;
   const nearbyEvents: NearbyEconomicEvent[] = trade.opened_at ? getNearbyEconomicEventsForTrade(trade.opened_at, (eventResult.data ?? []) as EconomicEvent[]) : [];
+  const tradingOSContext = buildTradeContext({
+    lifecycleStage: review ? "review" : "after_trade",
+    trade,
+    account: (accountResult.data ?? null) as TradingAccount | null,
+    strategy: (strategyResult.data ?? null) as Strategy | null,
+    psychology,
+    ruleChecks,
+    economicEvents: nearbyEvents,
+    latestDisciplineScore: (disciplineResult.data ?? null) as DisciplineScore | null,
+    revengeEvents: (revengeResult.data ?? []) as RevengeEvent[],
+  });
 
   return (
     <AppShell title={`${trade.symbol} Trade`} subtitle="Manual journal trade detail." user={userData.user}>
@@ -137,6 +223,8 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
             <DetailRow label="Opened At" value={formatDateTime(trade.opened_at)} />
           </div>
         </GlassCard>
+
+        <TradeContextCard context={tradingOSContext} hasReview={Boolean(review)} />
 
         <GlassCard className="p-4 md:p-6">
           <h2 className="text-base font-semibold">Risk & Execution</h2>

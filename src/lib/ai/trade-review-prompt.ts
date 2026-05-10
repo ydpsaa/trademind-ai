@@ -5,6 +5,7 @@ import type { DisciplineScore } from "@/lib/discipline/types";
 import type { TradePsychology } from "@/lib/psychology/types";
 import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
+import type { TradingOSContext } from "@/lib/trading-os/types";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
 
 interface TradeReviewPromptInput {
@@ -18,6 +19,7 @@ interface TradeReviewPromptInput {
   disciplineScore?: DisciplineScore | null;
   revengeEvents?: RevengeEvent[];
   ruleChecks?: TradeRuleCheckWithRule[];
+  tradingOSContext?: TradingOSContext;
 }
 
 const jsonShape = {
@@ -34,7 +36,7 @@ const jsonShape = {
   recommendations: [""],
 };
 
-export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, economicEvents = [], newsRiskLevel = "Low", newsRiskSummary = "No economic events were detected inside the configured risk window.", psychology = null, disciplineScore = null, revengeEvents = [], ruleChecks = [] }: TradeReviewPromptInput) {
+export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, economicEvents = [], newsRiskLevel = "Low", newsRiskSummary = "No economic events were detected inside the configured risk window.", psychology = null, disciplineScore = null, revengeEvents = [], ruleChecks = [], tradingOSContext }: TradeReviewPromptInput) {
   return [
     "You are an AI trading coach for TradeMind AI.",
     "Analyze execution quality, not only result. Use Smart Money / ICT concepts and evaluate market structure, liquidity, risk, psychology, and news context.",
@@ -43,6 +45,7 @@ export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, ec
     "Use only the provided trade and journal data. If market data or news data is missing, state that the review is based only on journal/trade inputs.",
     "If nearby economic events exist, evaluate news risk explicitly. If no events are available, state that news context is limited. Do not invent price action or news.",
     "Evaluate whether the trade respected the user's own pre-trade checklist. Failed rule checks should affect execution-quality feedback.",
+    "Use the Trading OS context as the normalized source for account, strategy, risk, rules, psychology, news, discipline, and data availability. Do not invent missing market data.",
     "Return valid JSON only. Do not wrap JSON in markdown. Scores must be numbers from 0 to 100.",
     "",
     "Required JSON shape:",
@@ -68,6 +71,51 @@ export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, ec
         opened_at: trade.opened_at,
         closed_at: trade.closed_at,
       },
+      null,
+      2,
+    ),
+    "",
+    "Trading OS context:",
+    JSON.stringify(
+      tradingOSContext
+        ? {
+            lifecycle_stage: tradingOSContext.lifecycle_stage,
+            account: tradingOSContext.account,
+            strategy: tradingOSContext.strategy,
+            risk: tradingOSContext.risk,
+            news: {
+              status: tradingOSContext.news.status,
+              risk_level: tradingOSContext.news.risk_level,
+              nearby_events_count: tradingOSContext.news.nearby_events_count,
+              high_impact_events_count: tradingOSContext.news.high_impact_events_count,
+              summary: tradingOSContext.news.summary,
+            },
+            psychology: tradingOSContext.psychology,
+            rules: {
+              status: tradingOSContext.rules.status,
+              total_checks: tradingOSContext.rules.total_checks,
+              passed_checks: tradingOSContext.rules.passed_checks,
+              failed_checks: tradingOSContext.rules.failed_checks,
+              failed_rules: tradingOSContext.rules.failed_rules,
+              adherence: tradingOSContext.rules.adherence,
+            },
+            discipline: {
+              status: tradingOSContext.discipline.status,
+              total_score: tradingOSContext.discipline.total_score,
+              rule_adherence: tradingOSContext.discipline.rule_adherence,
+              risk_control: tradingOSContext.discipline.risk_control,
+              emotion_balance: tradingOSContext.discipline.emotion_balance,
+            },
+            revenge: {
+              status: tradingOSContext.revenge.status,
+              events_count: tradingOSContext.revenge.events_count,
+              max_score: tradingOSContext.revenge.max_score,
+              trade_is_involved: tradingOSContext.revenge.trade_is_involved,
+            },
+            data_availability: tradingOSContext.data_availability,
+            prop_readiness: tradingOSContext.prop_readiness,
+          }
+        : null,
       null,
       2,
     ),

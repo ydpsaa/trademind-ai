@@ -6,14 +6,17 @@ import { estimateAIReviewCost } from "@/lib/ai/cost-estimator";
 import { generateRulesBasedTradeReview } from "@/lib/ai/rules-based-trade-review";
 import { logAIUsage } from "@/lib/ai/usage-logger";
 import { validateTradeReviewPayload, type TradeReviewPayload } from "@/lib/ai/review-schema";
+import type { TradingAccount } from "@/lib/accounts/types";
 import { getNearbyEconomicEventsForTrade, getNewsRiskLevel, getNewsRiskSummary } from "@/lib/calendar/news-risk";
 import type { EconomicEvent } from "@/lib/calendar/types";
 import type { DisciplineScore } from "@/lib/discipline/types";
 import type { TradePsychology } from "@/lib/psychology/types";
 import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
+import type { Strategy } from "@/lib/strategies/types";
 import { formatSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { buildTradeContext } from "@/lib/trading-os/context-builder";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
 import { incrementAIReviewUsage } from "@/lib/usage/user-usage";
 
@@ -116,6 +119,36 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
     nearbyEvents = getNearbyEconomicEventsForTrade(trade.opened_at, (eventData ?? []) as EconomicEvent[]);
   }
 
+  const [{ data: accountData }, { data: strategyData }] = await Promise.all([
+    trade.trading_account_id
+      ? supabase
+          .from("trading_accounts")
+          .select("id,user_id,provider,account_name,account_type,currency,status,metadata,created_at,updated_at")
+          .eq("id", trade.trading_account_id)
+          .eq("user_id", userData.user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    trade.strategy_id
+      ? supabase
+          .from("strategies")
+          .select("id,user_id,name,description,rules_json,is_active,created_at,updated_at")
+          .eq("id", trade.strategy_id)
+          .eq("user_id", userData.user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  const tradingOSContext = buildTradeContext({
+    lifecycleStage: "review",
+    trade,
+    account: (accountData ?? null) as TradingAccount | null,
+    strategy: (strategyData ?? null) as Strategy | null,
+    psychology,
+    ruleChecks,
+    economicEvents: nearbyEvents,
+    latestDisciplineScore: disciplineScore,
+    revengeEvents,
+  });
+
   const fallbackReview = validateTradeReviewPayload(generateRulesBasedTradeReview(trade, journalEntry, nearbyEvents, psychology, disciplineScore, revengeEvents, ruleChecks));
 
   if (!fallbackReview) {
@@ -143,6 +176,7 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
         disciplineScore,
         revengeEvents,
         ruleChecks,
+        tradingOSContext,
       });
       finalReview = aiReview.review;
       generationSource = "ai";

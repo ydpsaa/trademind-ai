@@ -12,6 +12,7 @@ import { BacktestPreviewCard } from "@/components/dashboard/BacktestPreviewCard"
 import { SignalsPreviewCard } from "@/components/dashboard/SignalsPreviewCard";
 import { PsychologyPreviewCard } from "@/components/dashboard/PsychologyPreviewCard";
 import { RulesPreviewCard } from "@/components/dashboard/RulesPreviewCard";
+import { TradingOSSummaryCard } from "@/components/dashboard/TradingOSSummaryCard";
 import { AIInsightPanel } from "@/components/dashboard/AIInsightPanel";
 import { TodaysEventsCard } from "@/components/dashboard/TodaysEventsCard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -240,6 +241,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </GlassCard>
         ) : null}
         <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-12">
+          <TradingOSSummaryCard
+            trades={trades}
+            todayEvents={todayEvents}
+            psychologyRows={psychologyRows}
+            latestDisciplineScore={latestDisciplineScore}
+            latestRevengeEvent={latestRevengeEvent}
+            ruleChecks={rulesPreview.checks}
+          />
           <EquityCurveCard trades={trades} />
           <MarketsCard />
           <RecentTradesCard trades={dashboardStats.recentTrades} />

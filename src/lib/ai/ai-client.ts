@@ -7,6 +7,7 @@ import type { DisciplineScore } from "@/lib/discipline/types";
 import type { TradePsychology } from "@/lib/psychology/types";
 import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
+import type { TradingOSContext } from "@/lib/trading-os/types";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
 
 interface GenerateAITradeReviewInput {
@@ -20,6 +21,7 @@ interface GenerateAITradeReviewInput {
   disciplineScore?: DisciplineScore | null;
   revengeEvents?: RevengeEvent[];
   ruleChecks?: TradeRuleCheckWithRule[];
+  tradingOSContext?: TradingOSContext;
 }
 
 export interface AITradeReviewResult {

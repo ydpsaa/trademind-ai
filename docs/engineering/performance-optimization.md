@@ -60,5 +60,16 @@ Sidebar stays lightweight:
 
 - uses Next.js `Link`
 - no data fetching inside the client sidebar
-- user data is passed from `AppShell`
-- hot routes can pass an already-fetched user to `AppShell` to avoid duplicate auth reads
+- user data is passed from the shared protected layout
+- route links keep the default Next.js prefetch behavior
+- normal internal navigation should never use `window.location`
+
+## Persistent AppShell
+
+Protected app routes live under a shared route-group layout. The layout renders `AppShell` once so the Sidebar and Topbar stay mounted while only the page content changes.
+
+- `src/app/(app)/layout.tsx` owns the persistent shell and authenticated user context.
+- Page-level `AppShell` calls are content wrappers only; they no longer render the Sidebar, Topbar, or background shell.
+- Page `loading.tsx` files live under the protected route group, so loading skeletons replace only page content inside the persistent shell.
+- Keep page-specific data fetching in pages, not in Sidebar or Topbar.
+- Use `router.refresh()` only after mutations that need fresh server data, not for ordinary navigation.

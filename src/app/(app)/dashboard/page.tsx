@@ -229,9 +229,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     <AppShell
       rightRail={<DashboardRightRail todayEvents={todayEvents} />}
       user={userData.user}
-      accountSelector={<AccountSelector accounts={accounts} selectedAccount={selectedAccount} basePath="/dashboard" />}
     >
       <div className="min-w-0 space-y-4">
+        <div className="flex justify-end">
+          <AccountSelector accounts={accounts} selectedAccount={selectedAccount} basePath="/dashboard" />
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {dashboardStats.metricCards.map((metric) => <MetricCard key={metric.label} {...metric} />)}
         </div>

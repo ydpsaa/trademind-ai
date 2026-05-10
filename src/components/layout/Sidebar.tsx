@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
   Bot,
@@ -42,6 +42,7 @@ interface SidebarProps {
 
 export function Sidebar({ userEmail, userName }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const initials = (userName || userEmail || "User")
     .split(/\s|@/)
     .filter(Boolean)
@@ -52,7 +53,8 @@ export function Sidebar({ userEmail, userName }: SidebarProps) {
   async function handleLogout() {
     const supabase = createSupabaseBrowserClient();
     await supabase.auth.signOut();
-    window.location.href = "/login";
+    router.replace("/login");
+    router.refresh();
   }
 
   return (

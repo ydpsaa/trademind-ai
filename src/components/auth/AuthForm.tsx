@@ -22,7 +22,8 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const isRegister = mode === "register";
-  const nextPath = searchParams.get("next") || "/dashboard";
+  const requestedNextPath = searchParams.get("next") || "/dashboard";
+  const nextPath = requestedNextPath.startsWith("/") && !requestedNextPath.startsWith("//") ? requestedNextPath : "/dashboard";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,8 +65,8 @@ export function AuthForm({ mode }: AuthFormProps) {
           return;
         }
 
+        router.replace(nextPath);
         router.refresh();
-        router.push(nextPath);
         return;
       }
 
@@ -81,8 +82,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         return;
       }
 
+      router.replace(nextPath);
       router.refresh();
-      router.push(nextPath);
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed.");
     } finally {

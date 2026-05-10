@@ -19,6 +19,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { isInvalidRefreshTokenError } from "@/lib/auth/session-guard";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: Home },
@@ -51,8 +52,17 @@ export function Sidebar({ userEmail, userName }: SidebarProps) {
     .join("");
 
   async function handleLogout() {
-    const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signOut();
+      if (error && !isInvalidRefreshTokenError(error)) {
+        console.warn("[auth] Sign out did not complete cleanly.");
+      }
+    } catch (error) {
+      if (!isInvalidRefreshTokenError(error)) {
+        console.warn("[auth] Sign out failed.");
+      }
+    }
     router.replace("/login");
     router.refresh();
   }

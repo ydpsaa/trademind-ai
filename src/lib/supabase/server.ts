@@ -2,6 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+import { isInvalidRefreshTokenError } from "@/lib/auth/session-guard";
 import { getSupabaseAnonKey, getSupabaseServiceRoleKey, getSupabaseUrl, hasSupabasePublicEnv } from "@/lib/supabase/config";
 
 export const createSupabaseServerClient = cache(async () => {
@@ -39,8 +40,18 @@ export const getCurrentUser = cache(async () => {
     return null;
   }
 
-  const { data } = await supabase.auth.getUser();
-  return data.user ?? null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error && isInvalidRefreshTokenError(error)) {
+      return null;
+    }
+    return data.user ?? null;
+  } catch (error) {
+    if (isInvalidRefreshTokenError(error)) {
+      return null;
+    }
+    return null;
+  }
 });
 
 export function createSupabaseServiceRoleClient() {

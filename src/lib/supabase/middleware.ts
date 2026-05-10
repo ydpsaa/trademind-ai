@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { clearSupabaseAuthCookies, isInvalidRefreshTokenError } from "@/lib/auth/session-guard";
 
 const protectedRoutes = [
   "/dashboard",
@@ -31,11 +32,15 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
-  const redirectToLogin = () => {
+  const redirectToLogin = (clearAuthCookies = false) => {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    const redirectResponse = NextResponse.redirect(url);
+    if (clearAuthCookies) {
+      clearSupabaseAuthCookies(request, redirectResponse);
+    }
+    return redirectResponse;
   };
 
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -48,16 +53,36 @@ export async function updateSession(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        try {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        } catch {
+          // Let the next request retry session synchronization.
+        }
       },
     },
   });
 
-  const { data } = await supabase.auth.getUser();
+  let data = null;
+  let error = null;
 
-  if (!data.user) {
+  try {
+    const result = await supabase.auth.getUser();
+    data = result.data;
+    error = result.error;
+  } catch (authError) {
+    if (isInvalidRefreshTokenError(authError)) {
+      return redirectToLogin(true);
+    }
+    return redirectToLogin();
+  }
+
+  if (error && isInvalidRefreshTokenError(error)) {
+    return redirectToLogin(true);
+  }
+
+  if (!data?.user) {
     return redirectToLogin();
   }
 

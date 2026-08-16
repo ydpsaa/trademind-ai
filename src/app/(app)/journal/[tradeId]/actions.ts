@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { generateAITradeReview } from "@/lib/ai/ai-client";
 import { estimateAIReviewCost } from "@/lib/ai/cost-estimator";
+import { getConfiguredAIModel, getConfiguredAIProvider, isConfiguredAIProviderAvailable, type AIProvider } from "@/lib/ai/provider";
 import { generateRulesBasedTradeReview } from "@/lib/ai/rules-based-trade-review";
 import { logAIUsage } from "@/lib/ai/usage-logger";
 import { validateTradeReviewPayload, type TradeReviewPayload } from "@/lib/ai/review-schema";
@@ -158,12 +159,13 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
   let finalReview: TradeReviewPayload = fallbackReview;
   let generationSource: "ai" | "rules" = "rules";
   let model: string | null = "local-rules";
-  let provider: "openai" | "local" = "local";
+  let provider: AIProvider | "local" = "local";
   let inputTokens: number | null = null;
   let outputTokens: number | null = null;
   let aiFallbackError: string | null = null;
+  const configuredProvider = getConfiguredAIProvider();
 
-  if (process.env.OPENAI_API_KEY?.trim()) {
+  if (isConfiguredAIProviderAvailable()) {
     try {
       const aiReview = await generateAITradeReview({
         trade,
@@ -186,7 +188,7 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
       outputTokens = aiReview.usage.output_tokens;
     } catch (error) {
       aiFallbackError = safeAIErrorMessage(error);
-      console.warn("[ai-review] Falling back to local rules engine:", aiFallbackError);
+      console.warn(`[ai-review] ${configuredProvider} fallback to local rules engine:`, aiFallbackError);
     }
   }
 
@@ -235,8 +237,8 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
     await logAIUsage({
       user_id: userData.user.id,
       feature: "trade_review",
-      provider: "openai",
-      model: process.env.OPENAI_MODEL?.trim() || "gpt-5.5-thinking",
+      provider: configuredProvider,
+      model: getConfiguredAIModel(configuredProvider),
       generation_source: "ai",
       status: "fallback",
       error_message: aiFallbackError,

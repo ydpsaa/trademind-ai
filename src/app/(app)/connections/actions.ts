@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getProvider } from "@/lib/connections/connection-status";
+import { getConfiguredAIModel, getConfiguredAIProvider, getOllamaBaseUrl, isConfiguredAIProviderAvailable } from "@/lib/ai/provider";
 import type { ConnectionActionState, ConnectionMode, ConnectionStatus, IntegrationProvider } from "@/lib/connections/types";
 import { hasSupabasePublicEnv } from "@/lib/supabase/config";
 import { formatSupabaseError } from "@/lib/supabase/errors";
@@ -12,12 +13,15 @@ function stringValue(formData: FormData, key: string) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function hasOpenAIKey() {
-  return Boolean(process.env.OPENAI_API_KEY);
-}
-
-function configuredModel() {
-  return process.env.OPENAI_MODEL || "local-rules";
+async function canReachOllama() {
+  try {
+    const response = await fetch(`${getOllamaBaseUrl()}/api/tags`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 function connectionPatchMessage(message: string) {
@@ -92,12 +96,15 @@ export async function checkConnectionStatusAction(_state: ConnectionActionState,
       authSession: Boolean(context.user.id),
     };
   } else if (providerId === "ai-provider") {
-    status = hasOpenAIKey() ? "connected" : "fallback";
-    mode = hasOpenAIKey() ? "configured" : "fallback";
+    const configuredProvider = getConfiguredAIProvider();
+    const localAIReady = configuredProvider === "ollama" ? await canReachOllama() : false;
+    const ready = configuredProvider === "ollama" ? localAIReady : isConfiguredAIProviderAvailable();
+    status = ready ? "connected" : "fallback";
+    mode = ready ? "configured" : "fallback";
     metadata = {
-      aiServiceConfigured: hasOpenAIKey(),
-      aiMode: process.env.AI_PROVIDER ? "configured" : "fallback",
-      model: configuredModel(),
+      aiServiceConfigured: ready,
+      aiMode: configuredProvider === "ollama" ? "local" : process.env.AI_PROVIDER ? "configured" : "fallback",
+      model: ready ? getConfiguredAIModel(configuredProvider) : "local-rules",
     };
   } else if (providerId === "economic-calendar") {
     const { error, count } = await context.supabase.from("economic_events").select("id", { count: "exact", head: true });

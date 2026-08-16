@@ -1,4 +1,5 @@
 import "server-only";
+import { getConfiguredAIModel, getConfiguredAIProvider, getOllamaBaseUrl, type AIProvider } from "@/lib/ai/provider";
 import { validateTradeReviewPayload, type TradeReviewPayload } from "@/lib/ai/review-schema";
 import { buildTradeReviewPrompt } from "@/lib/ai/trade-review-prompt";
 import type { NewsRiskLevel } from "@/lib/calendar/news-risk";
@@ -27,7 +28,7 @@ interface GenerateAITradeReviewInput {
 export interface AITradeReviewResult {
   review: TradeReviewPayload;
   model: string;
-  provider: "openai";
+  provider: AIProvider;
   usage: {
     input_tokens: number | null;
     output_tokens: number | null;
@@ -46,8 +47,17 @@ function extractJson(text: string) {
 }
 
 export async function generateAITradeReview(input: GenerateAITradeReviewInput): Promise<AITradeReviewResult> {
+  const provider = getConfiguredAIProvider();
+  if (provider === "ollama") {
+    return generateOllamaTradeReview(input);
+  }
+
+  return generateOpenAITradeReview(input);
+}
+
+async function generateOpenAITradeReview(input: GenerateAITradeReviewInput): Promise<AITradeReviewResult> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-  const model = process.env.OPENAI_MODEL?.trim() || "gpt-5.5-thinking";
+  const model = getConfiguredAIModel("openai");
 
   if (!apiKey) {
     throw new Error("AI API key is not configured.");
@@ -113,6 +123,74 @@ export async function generateAITradeReview(input: GenerateAITradeReviewInput): 
     usage: {
       input_tokens: typeof data.usage?.prompt_tokens === "number" ? data.usage.prompt_tokens : null,
       output_tokens: typeof data.usage?.completion_tokens === "number" ? data.usage.completion_tokens : null,
+    },
+  };
+}
+
+async function generateOllamaTradeReview(input: GenerateAITradeReviewInput): Promise<AITradeReviewResult> {
+  const model = getConfiguredAIModel("ollama");
+  const prompt = buildTradeReviewPrompt(input);
+  const response = await fetch(`${getOllamaBaseUrl()}/api/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      stream: false,
+      format: "json",
+      messages: [
+        {
+          role: "system",
+          content: "You are a local AI review engine. Return valid JSON only.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      options: {
+        temperature: 0.1,
+        num_ctx: 8192,
+      },
+    }),
+    signal: AbortSignal.timeout(120000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Local AI request failed with status ${response.status}.`);
+  }
+
+  const data = (await response.json()) as {
+    message?: { content?: string };
+    prompt_eval_count?: number;
+    eval_count?: number;
+  };
+  const content = data.message?.content;
+
+  if (!content) {
+    throw new Error("Local AI response did not include content.");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(extractJson(content));
+  } catch {
+    throw new Error("Local AI response was not valid JSON.");
+  }
+
+  const review = validateTradeReviewPayload(parsed);
+  if (!review) {
+    throw new Error("Local AI response did not match the expected review format.");
+  }
+
+  return {
+    review,
+    model,
+    provider: "ollama",
+    usage: {
+      input_tokens: typeof data.prompt_eval_count === "number" ? data.prompt_eval_count : null,
+      output_tokens: typeof data.eval_count === "number" ? data.eval_count : null,
     },
   };
 }

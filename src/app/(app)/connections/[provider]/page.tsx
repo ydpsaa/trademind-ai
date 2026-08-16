@@ -6,6 +6,7 @@ import { ConnectionStatusButton } from "@/components/connections/ConnectionStatu
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatAIModelLabel } from "@/lib/ai/display";
+import { getConfiguredAIModel, getConfiguredAIProvider, isConfiguredAIProviderAvailable } from "@/lib/ai/provider";
 import { isAdminUser } from "@/lib/auth/admin";
 import { connectionStatusTone, deriveRuntimeStatus, getProvider } from "@/lib/connections/connection-status";
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, IntegrationProvider, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
@@ -94,15 +95,16 @@ function resolvedStatus(provider: ProviderCard, record: IntegrationConnection | 
     }
 
     if (provider.provider === "ai-provider") {
-      const connected = Boolean(process.env.OPENAI_API_KEY);
+      const connected = isConfiguredAIProviderAvailable();
+      const configuredProvider = getConfiguredAIProvider();
       return {
         ...status,
         status: connected ? ("connected" as const) : ("fallback" as const),
         mode: connected ? ("configured" as const) : ("fallback" as const),
         metadata: {
           aiServiceConfigured: connected,
-          aiMode: process.env.AI_PROVIDER ? "configured" : "fallback",
-          model: process.env.OPENAI_MODEL || "local-rules",
+          aiMode: configuredProvider === "ollama" ? "local" : process.env.AI_PROVIDER ? "configured" : "fallback",
+          model: connected ? getConfiguredAIModel(configuredProvider) : "local-rules",
         },
       };
     }

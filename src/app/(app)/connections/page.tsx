@@ -3,6 +3,7 @@ import { Cable, CheckCircle2, Clock3, LockKeyhole, ShieldAlert, ShieldCheck } fr
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { getConfiguredAIModel, getConfiguredAIProvider, isConfiguredAIProviderAvailable } from "@/lib/ai/provider";
 import { isAdminUser } from "@/lib/auth/admin";
 import { connectionStatusTone, deriveRuntimeStatus, summarizeConnections, userConnectionProviders } from "@/lib/connections/connection-status";
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
@@ -75,7 +76,8 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
     }
 
     if (provider.provider === "ai-provider") {
-      const connected = Boolean(process.env.OPENAI_API_KEY);
+      const connected = isConfiguredAIProviderAvailable();
+      const configuredProvider = getConfiguredAIProvider();
       return {
         ...stored,
         status: connected ? "connected" : "fallback",
@@ -83,8 +85,8 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         label: connected ? "connected" : "fallback",
         metadata: {
           aiServiceConfigured: connected,
-          aiMode: process.env.AI_PROVIDER ? "configured" : "fallback",
-          model: process.env.OPENAI_MODEL || "local-rules",
+          aiMode: configuredProvider === "ollama" ? "local" : process.env.AI_PROVIDER ? "configured" : "fallback",
+          model: connected ? getConfiguredAIModel(configuredProvider) : "local-rules",
         },
       };
     }

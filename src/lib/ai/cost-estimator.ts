@@ -16,7 +16,7 @@ const PLACEHOLDER_TOKEN_PRICES_USD: Record<string, { inputPerMillion: number; ou
 };
 
 export function estimateAIReviewCost(input: EstimateAIReviewCostInput) {
-  if (input.generation_source === "rules" || input.provider === "local") {
+  if (input.generation_source === "rules" || input.provider === "local" || input.provider === "ollama") {
     return 0;
   }
 

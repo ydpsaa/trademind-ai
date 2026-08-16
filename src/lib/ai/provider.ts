@@ -8,7 +8,7 @@ export function getConfiguredAIProvider(): AIProvider {
 
 export function getConfiguredAIModel(provider: AIProvider = getConfiguredAIProvider()) {
   if (provider === "ollama") {
-    return process.env.OLLAMA_MODEL?.trim() || "qwen2.5:7b";
+    return process.env.OLLAMA_MODEL?.trim() || "qwen2.5:3b";
   }
 
   return process.env.OPENAI_MODEL?.trim() || "gpt-5.5-thinking";

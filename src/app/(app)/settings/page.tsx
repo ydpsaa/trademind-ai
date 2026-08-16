@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Brain, CreditCard, UserRound } from "lucide-react";
+import { Brain, CreditCard, MemoryStick, UserRound } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -24,19 +24,21 @@ export default async function SettingsPage() {
   let latestDisciplineScore: number | null = null;
   let revengeEventsThisMonth = 0;
   let activeRulesCount = 0;
+  let vectorMemoryCount = 0;
 
   if (user && supabase) {
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
 
-    const [profileResult, userUsage, psychologyResult, disciplineResult, revengeResult, rulesResult] = await Promise.all([
+    const [profileResult, userUsage, psychologyResult, disciplineResult, revengeResult, rulesResult, memoryResult] = await Promise.all([
       supabase.from("profiles").select("email, full_name, plan").eq("id", user.id).maybeSingle(),
       getUserUsage(user.id),
       supabase.from("trade_psychology").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("discipline_scores").select("total_score").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("revenge_events").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", monthStart.toISOString()),
       supabase.from("trading_rules").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("active", true),
+      supabase.from("trade_embeddings").select("id", { count: "exact", head: true }).eq("user_id", user.id),
     ]);
     profile = profileResult.data;
     usage = userUsage;
@@ -44,6 +46,7 @@ export default async function SettingsPage() {
     latestDisciplineScore = disciplineResult.data?.total_score != null ? Math.round(Number(disciplineResult.data.total_score)) : null;
     revengeEventsThisMonth = revengeResult.count ?? 0;
     activeRulesCount = rulesResult.count ?? 0;
+    vectorMemoryCount = memoryResult.count ?? 0;
   }
 
   return (
@@ -107,6 +110,21 @@ export default async function SettingsPage() {
             <Link href="/psychology" className="grid min-h-16 place-items-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-white">
               Open Psychology
             </Link>
+          </div>
+        </GlassCard>
+
+        <GlassCard className="p-4 md:p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <MemoryStick className="h-4 w-4 text-zinc-400" />
+            <h2 className="text-lg font-semibold text-white">Vector Memory</h2>
+            <StatusBadge tone={vectorMemoryCount ? "positive" : "neutral"}>{vectorMemoryCount ? "Active" : "Ready"}</StatusBadge>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-zinc-400">
+            Reviewed trades become private semantic memories used to compare recurring execution patterns. Local embeddings have no API cost.
+          </p>
+          <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="text-xs text-zinc-500">Stored Trade Memories</div>
+            <div className="mt-1 text-lg font-semibold text-white">{vectorMemoryCount}</div>
           </div>
         </GlassCard>
 

@@ -7,6 +7,7 @@ import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
 import type { TradingOSContext } from "@/lib/trading-os/types";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
+import type { SimilarTradeMemory } from "@/lib/vector-memory/types";
 
 interface TradeReviewPromptInput {
   trade: Trade;
@@ -20,6 +21,7 @@ interface TradeReviewPromptInput {
   revengeEvents?: RevengeEvent[];
   ruleChecks?: TradeRuleCheckWithRule[];
   tradingOSContext?: TradingOSContext;
+  similarTradeMemories?: SimilarTradeMemory[];
 }
 
 const jsonShape = {
@@ -36,7 +38,7 @@ const jsonShape = {
   recommendations: [""],
 };
 
-export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, economicEvents = [], newsRiskLevel = "Low", newsRiskSummary = "No economic events were detected inside the configured risk window.", psychology = null, disciplineScore = null, revengeEvents = [], ruleChecks = [], tradingOSContext }: TradeReviewPromptInput) {
+export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, economicEvents = [], newsRiskLevel = "Low", newsRiskSummary = "No economic events were detected inside the configured risk window.", psychology = null, disciplineScore = null, revengeEvents = [], ruleChecks = [], tradingOSContext, similarTradeMemories = [] }: TradeReviewPromptInput) {
   return [
     "You are an AI trading coach for TradeMind AI.",
     "Analyze execution quality, not only result. Use Smart Money / ICT concepts and evaluate market structure, liquidity, risk, psychology, and news context.",
@@ -46,6 +48,7 @@ export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, ec
     "If nearby economic events exist, evaluate news risk explicitly. If no events are available, state that news context is limited. Do not invent price action or news.",
     "Evaluate whether the trade respected the user's own pre-trade checklist. Failed rule checks should affect execution-quality feedback.",
     "Use the Trading OS context as the normalized source for account, strategy, risk, rules, psychology, news, discipline, and data availability. Do not invent missing market data.",
+    "Use similar trade memories only as historical journal context. Compare repeated execution patterns without claiming causation or inventing details.",
     "Return valid JSON only. Do not wrap JSON in markdown. Scores must be numbers from 0 to 100.",
     "",
     "Required JSON shape:",
@@ -119,6 +122,9 @@ export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, ec
       null,
       2,
     ),
+    "",
+    "Similar trade memories:",
+    JSON.stringify(similarTradeMemories, null, 2),
     "",
     "Psychology data:",
     JSON.stringify(

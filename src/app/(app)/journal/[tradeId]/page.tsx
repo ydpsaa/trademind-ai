@@ -21,6 +21,7 @@ import type { TradingOSContext } from "@/lib/trading-os/types";
 import { formatDateTime, formatNumber } from "@/lib/trading/format";
 import { formatMoney } from "@/lib/trading/stats";
 import type { AITradeReview, Trade, TradeJournalEntry } from "@/lib/trading/types";
+import type { SimilarTradeMemory, TradeEmbedding } from "@/lib/vector-memory/types";
 
 interface TradeDetailPageProps {
   params: Promise<{ tradeId: string }>;
@@ -88,6 +89,41 @@ function TradeContextCard({ context, hasReview }: { context: TradingOSContext; h
   );
 }
 
+function VectorMemoryCard({ memory, matches }: { memory: TradeEmbedding | null; matches: SimilarTradeMemory[] }) {
+  return (
+    <GlassCard className="p-4 md:p-6">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-base font-semibold">Vector Memory</h2>
+          <p className="mt-1 text-sm text-zinc-500">Private semantic memory built from your own journal history.</p>
+        </div>
+        <StatusBadge tone={memory ? "positive" : "neutral"}>{memory ? "Memory ready" : "Not created"}</StatusBadge>
+      </div>
+      {!memory ? (
+        <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-400">
+          Generate an AI Review to create this trade memory. Local embeddings do not require an API key.
+        </div>
+      ) : matches.length ? (
+        <div className="mt-4 divide-y divide-white/10 rounded-2xl border border-white/10">
+          {matches.map((match) => (
+            <Link key={match.memory_id} href={`/journal/${match.trade_id}`} className="flex items-center justify-between gap-4 p-4 text-sm transition hover:bg-white/[0.04]">
+              <div className="min-w-0">
+                <div className="truncate font-medium text-white">{match.summary || "Similar journal trade"}</div>
+                <div className="mt-1 text-xs text-zinc-500">Historical journal context only</div>
+              </div>
+              <StatusBadge tone="neutral">{Math.round(Number(match.similarity) * 100)}% similar</StatusBadge>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-zinc-400">
+          This trade is stored in Vector Memory. More reviewed trades are needed before similar patterns can be compared.
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
 export default async function TradeDetailPage({ params }: TradeDetailPageProps) {
   const { tradeId } = await params;
   const supabase = await createSupabaseServerClient();
@@ -131,7 +167,7 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
       .order("event_time", { ascending: true });
   }
 
-  const [reviewResult, ruleCheckResult, eventResult, accountResult, strategyResult, disciplineResult, revengeResult] = await Promise.all([
+  const [reviewResult, ruleCheckResult, eventResult, accountResult, strategyResult, disciplineResult, revengeResult, memoryResult, similarMemoryResult] = await Promise.all([
     supabase
       .from("ai_trade_reviews")
       .select("id,trade_id,user_id,total_score,structure_score,liquidity_score,ict_score,risk_score,news_score,psychology_score,summary,strengths,weaknesses,recommendations,generation_source,model,created_at")
@@ -176,6 +212,17 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
       .eq("user_id", userData.user.id)
       .or(`previous_trade_id.eq.${trade.id},next_trade_id.eq.${trade.id}`)
       .limit(5),
+    supabase
+      .from("trade_embeddings")
+      .select("id,user_id,trade_id,embedding_model,content_hash,content,summary,metadata,created_at,updated_at")
+      .eq("trade_id", trade.id)
+      .eq("user_id", userData.user.id)
+      .maybeSingle(),
+    supabase.rpc("match_trade_memories_for_trade", {
+      p_trade_id: trade.id,
+      p_match_count: 3,
+      p_match_threshold: 0.45,
+    }),
   ]);
 
   const review = (reviewResult.data ?? null) as AITradeReview | null;
@@ -194,6 +241,8 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
     latestDisciplineScore: (disciplineResult.data ?? null) as DisciplineScore | null,
     revengeEvents: (revengeResult.data ?? []) as RevengeEvent[],
   });
+  const tradeMemory = memoryResult.error ? null : (memoryResult.data as TradeEmbedding | null);
+  const similarMemories = similarMemoryResult.error ? [] : (similarMemoryResult.data ?? []) as SimilarTradeMemory[];
 
   return (
     <AppShell title={`${trade.symbol} Trade`} subtitle="Manual journal trade detail." user={userData.user}>
@@ -341,6 +390,7 @@ export default async function TradeDetailPage({ params }: TradeDetailPageProps) 
           </div>
         </GlassCard>
 
+        <VectorMemoryCard memory={tradeMemory} matches={similarMemories} />
         <AIReviewCard review={review} tradeId={trade.id} />
       </div>
     </AppShell>

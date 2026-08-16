@@ -20,6 +20,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildTradeContext } from "@/lib/trading-os/context-builder";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
 import { incrementAIReviewUsage } from "@/lib/usage/user-usage";
+import { prepareTradeMemory } from "@/lib/vector-memory/memory-service";
 
 export interface ReviewActionState {
   error?: string;
@@ -150,7 +151,25 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
     revengeEvents,
   });
 
-  const fallbackReview = validateTradeReviewPayload(generateRulesBasedTradeReview(trade, journalEntry, nearbyEvents, psychology, disciplineScore, revengeEvents, ruleChecks));
+  const memoryResult = await prepareTradeMemory({
+    supabase,
+    userId: userData.user.id,
+    trade,
+    journalEntry,
+    psychology,
+    ruleChecks,
+    strategyName: (strategyData as Strategy | null)?.name ?? null,
+  });
+  const fallbackReview = validateTradeReviewPayload(generateRulesBasedTradeReview(
+    trade,
+    journalEntry,
+    nearbyEvents,
+    psychology,
+    disciplineScore,
+    revengeEvents,
+    ruleChecks,
+    memoryResult.similarMemories,
+  ));
 
   if (!fallbackReview) {
     return { error: "Unable to generate local review fallback." };
@@ -179,6 +198,7 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
         revengeEvents,
         ruleChecks,
         tradingOSContext,
+        similarTradeMemories: memoryResult.similarMemories,
       });
       finalReview = aiReview.review;
       generationSource = "ai";

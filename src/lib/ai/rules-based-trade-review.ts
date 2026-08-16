@@ -6,6 +6,7 @@ import type { TradePsychology } from "@/lib/psychology/types";
 import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
+import type { SimilarTradeMemory } from "@/lib/vector-memory/types";
 
 function clamp(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
@@ -24,6 +25,7 @@ export function generateRulesBasedTradeReview(
   disciplineScore: DisciplineScore | null = null,
   revengeEvents: RevengeEvent[] = [],
   ruleChecks: TradeRuleCheckWithRule[] = [],
+  similarTradeMemories: SimilarTradeMemory[] = [],
 ) {
   const notes = [
     journalEntry?.reason_for_entry,
@@ -155,6 +157,11 @@ export function generateRulesBasedTradeReview(
     } else {
       strengths.push("Trade followed your active pre-trade checklist.");
     }
+  }
+
+  if (similarTradeMemories.length) {
+    strengths.push(`Vector Memory found ${similarTradeMemories.length} similar journal trade${similarTradeMemories.length === 1 ? "" : "s"} for comparison.`);
+    recommendations.push("Review repeated strengths and mistakes across similar journal trades before changing the strategy.");
   }
 
   const involvedRevengeEvent = revengeEvents.find((event) => event.previous_trade_id === trade.id || event.next_trade_id === trade.id);

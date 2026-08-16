@@ -10,6 +10,7 @@ import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
 import type { TradingOSContext } from "@/lib/trading-os/types";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
+import type { SimilarTradeMemory } from "@/lib/vector-memory/types";
 
 interface GenerateAITradeReviewInput {
   trade: Trade;
@@ -23,6 +24,7 @@ interface GenerateAITradeReviewInput {
   revengeEvents?: RevengeEvent[];
   ruleChecks?: TradeRuleCheckWithRule[];
   tradingOSContext?: TradingOSContext;
+  similarTradeMemories?: SimilarTradeMemory[];
 }
 
 export interface AITradeReviewResult {
@@ -154,7 +156,7 @@ async function generateOllamaTradeReview(input: GenerateAITradeReviewInput): Pro
         num_ctx: 8192,
       },
     }),
-    signal: AbortSignal.timeout(120000),
+    signal: AbortSignal.timeout(180000),
   });
 
   if (!response.ok) {

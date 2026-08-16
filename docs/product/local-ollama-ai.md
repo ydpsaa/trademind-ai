@@ -9,7 +9,7 @@ Use ignored local environment files only:
 ```bash
 AI_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:7b
+OLLAMA_MODEL=qwen2.5:3b
 ```
 
 Do not commit `.env.local`.
@@ -24,12 +24,12 @@ Do not commit `.env.local`.
 
 ## Recommended Local Model
 
-`qwen2.5:7b` is the default because it is practical for local machines and generally follows structured JSON instructions well enough for review generation.
+`qwen2.5:3b` is the default because it follows structured JSON instructions while keeping review latency practical on a local CPU. Larger models can be configured on machines with more memory and acceleration.
 
 Install it locally:
 
 ```bash
-ollama pull qwen2.5:7b
+ollama pull qwen2.5:3b
 ```
 
 ## Production Note

@@ -1,6 +1,6 @@
 # Performance Optimization
 
-Stage 17 focuses on perceived navigation speed without changing product behavior or the Black & White Liquid Glass direction.
+The performance optimization pass focuses on perceived navigation speed without changing product behavior or the Black & White Liquid Glass direction.
 
 ## What Was Optimized
 

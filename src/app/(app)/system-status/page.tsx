@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Activity, Bot, CalendarDays, Database, DollarSign, LineChart, Radio, ShieldCheck, Signal } from "lucide-react";
+import { Activity, Bot, CalendarDays, Database, DollarSign, LineChart, MemoryStick, Radio, ShieldCheck, Signal } from "lucide-react";
 import { ConnectionStatusButton } from "@/components/connections/ConnectionStatusButton";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -14,6 +14,7 @@ import type { ConnectionMode, ConnectionStatus, IntegrationConnection, ProviderC
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/trading/stats";
 import { getCurrentUsagePeriod, getUserUsage, type UserUsageSnapshot } from "@/lib/usage/user-usage";
+import { isVectorMemoryConfigured } from "@/lib/vector-memory/embedding-client";
 
 function formatDateTime(value: string | null) {
   if (!value) return "Not checked";
@@ -355,6 +356,7 @@ export default async function SystemStatusPage() {
 
         <div className="grid gap-4 xl:grid-cols-2">
           <EngineCard icon={Database} title="Trading Accounts Model" status="connected" mode="User-scoped account selector active" powers={["Dashboard filters", "Journal filters", "Future CSV/import accounts"]} />
+          <EngineCard icon={MemoryStick} title="Vector Memory" status={isVectorMemoryConfigured() ? "connected" : "not_connected"} mode={isVectorMemoryConfigured() ? "Local embeddings configured" : "Waiting for embedding service"} powers={["Similar trade retrieval", "AI Review context", "Private journal memory"]} />
           <EngineCard icon={LineChart} title="Market Data Feed" status="not_connected" mode="Waiting for provider integration" powers={["Market scanner", "Dashboard market panel", "Signal validation"]} />
           <EngineCard icon={Activity} title="Scanner Engine" status="not_connected" mode="Waiting for real market data" powers={["SMC checklist", "Bias state", "Setup readiness"]} />
           <EngineCard icon={Radio} title="Backtest Engine" status="not_connected" mode="Waiting for historical market data" powers={["Backtest Lab", "Dashboard latest backtest", "Strategy validation"]} />

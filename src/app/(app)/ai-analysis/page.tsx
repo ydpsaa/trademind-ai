@@ -11,20 +11,32 @@ import type { User } from "@supabase/supabase-js";
 
 async function getAIReviews() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { reviews: [], user: null };
+  if (!supabase) return { reviews: [], user: null, memoryCount: 0, memoryModel: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { reviews: [], user: null };
+  if (userError || !userData.user) return { reviews: [], user: null, memoryCount: 0, memoryModel: null };
 
-  const { data, error } = await supabase
-    .from("ai_trade_reviews")
-    .select("id,trade_id,user_id,total_score,structure_score,liquidity_score,ict_score,risk_score,news_score,psychology_score,summary,strengths,weaknesses,recommendations,generation_source,model,created_at,trades(id,user_id,trading_account_id,source,symbol,market_type,direction,entry_price,exit_price,stop_loss,take_profit,position_size,risk_percent,rr,pnl,fees,result,session,strategy_id,opened_at,closed_at,created_at,updated_at)")
-    .eq("user_id", userData.user.id)
-    .order("created_at", { ascending: false })
-    .limit(20);
+  const [reviewResult, memoryResult] = await Promise.all([
+    supabase
+      .from("ai_trade_reviews")
+      .select("id,trade_id,user_id,total_score,structure_score,liquidity_score,ict_score,risk_score,news_score,psychology_score,summary,strengths,weaknesses,recommendations,generation_source,model,created_at,trades(id,user_id,trading_account_id,source,symbol,market_type,direction,entry_price,exit_price,stop_loss,take_profit,position_size,risk_percent,rr,pnl,fees,result,session,strategy_id,opened_at,closed_at,created_at,updated_at)")
+      .eq("user_id", userData.user.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("trade_embeddings")
+      .select("embedding_model", { count: "exact" })
+      .eq("user_id", userData.user.id)
+      .order("updated_at", { ascending: false })
+      .limit(1),
+  ]);
 
-  if (error) return { reviews: [], user: userData.user as User };
-  return { reviews: (data ?? []) as unknown as AITradeReview[], user: userData.user as User };
+  return {
+    reviews: reviewResult.error ? [] : (reviewResult.data ?? []) as unknown as AITradeReview[],
+    user: userData.user as User,
+    memoryCount: memoryResult.error ? 0 : memoryResult.count ?? 0,
+    memoryModel: memoryResult.error ? null : memoryResult.data?.[0]?.embedding_model ?? null,
+  };
 }
 
 function score(value: number | null) {
@@ -36,7 +48,7 @@ function sourceLabel(source: string | null | undefined) {
 }
 
 export default async function AiAnalysisPage() {
-  const { reviews, user } = await getAIReviews();
+  const { reviews, user, memoryCount, memoryModel } = await getAIReviews();
 
   return (
     <AppShell title="AI Trade Analysis" subtitle="AI trading coach reviews generated from your journal data." user={user}>
@@ -55,6 +67,24 @@ export default async function AiAnalysisPage() {
               </div>
             </div>
             <StatusBadge tone="neutral">AI Review</StatusBadge>
+          </div>
+        </GlassCard>
+
+        <GlassCard className="p-4 md:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-semibold">Vector Memory</h2>
+                <StatusBadge tone={memoryCount ? "positive" : "neutral"}>{memoryCount ? "Active" : "Waiting for reviewed trades"}</StatusBadge>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                Private semantic memory compares each review with similar trades from your own journal.
+              </p>
+            </div>
+            <div className="grid min-w-32 gap-1 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-right">
+              <span className="text-xl font-semibold text-white">{memoryCount}</span>
+              <span className="text-xs text-zinc-500">memories{memoryModel ? ` · ${memoryModel}` : ""}</span>
+            </div>
           </div>
         </GlassCard>
 

@@ -30,7 +30,7 @@ TradeMind AI is not only a trade database. The psychology module lets the produc
 
 ## Why Vector Memory Matters
 
-Vector memory will let the AI compare current trades with similar past trades and recurring mistakes. This enables answers such as "you usually lose when entering after high-impact news with no checklist confirmation" without hard-coding every pattern.
+Vector Memory now lets AI Review compare current trades with similar user-owned journal memories and recurring execution patterns. It does not infer market data or claim that a past result will repeat.
 
 ## Why AI Usage Logs Matter
 
@@ -47,7 +47,7 @@ Plans are added now so feature limits and entitlement checks have a stable data 
 - Stage 14: Psychology module UI
 - Stage 15: Discipline Score + Revenge Index
 - Stage 16: Pre-Trade Checklist
-- Stage 17: Vector Memory
+- Stage 17: Vector Memory (implemented)
 - Stage 18: CSV Import
 - Stage 19: Bybit read-only
 - Stage 20: OKX read-only

@@ -34,7 +34,7 @@ TradeMind AI now treats the app as one connected Trading OS instead of isolated 
    - Revenge Index
    - Rule adherence
    - Strategy feedback
-   - Future Vector Memory
+   - Vector Memory and similar-trade context
 
 ## Shared Context
 
@@ -95,15 +95,14 @@ Each trade detail page now includes a Trade Context section connecting:
 
 ## AI Review
 
-AI Review now receives the normalized Trading OS context in addition to the existing trade, journal, psychology, rules, discipline, revenge, and news inputs.
+AI Review now receives the normalized Trading OS context in addition to the existing trade, journal, psychology, rules, discipline, revenge, news, and Vector Memory inputs.
 
 The prompt tells AI not to invent missing market data and to use the context availability flags.
 
 ## Future Readiness
 
-This refactor prepares:
+The Trading OS now includes Stage 17 Vector Memory and prepares:
 
-- Stage 17 Vector Memory
 - Stage 18 CSV Import
 - Stage 19 Bybit Read-Only
 - Stage 20 OKX Read-Only

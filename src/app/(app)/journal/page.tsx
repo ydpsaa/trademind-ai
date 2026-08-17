@@ -57,8 +57,10 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
         .order("opened_at", { ascending: false })
         .limit(250);
 
-      if (source !== "all") {
-        query = query.eq("source", source);
+      if (source === "manual") {
+        query = query.eq("source", "manual");
+      } else if (source === "imported") {
+        query = query.neq("source", "manual");
       }
       if (selectedAccount === MANUAL_ACCOUNT_VALUE) {
         query = query.eq("source", "manual");

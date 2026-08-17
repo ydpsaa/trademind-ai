@@ -59,7 +59,6 @@ export function JournalControls({ period, source, accounts, selectedAccount }: J
             >
               {item.value === "imported" ? <BookOpenCheck className="h-3.5 w-3.5" /> : null}
               {item.label}
-              {item.value === "imported" ? <span className="text-[10px] text-zinc-500">Coming later</span> : null}
             </Link>
           ))}
         </div>

@@ -15,6 +15,7 @@ import {
   Settings,
   Sparkles,
   SquarePen,
+  TableProperties,
   Unplug,
   WandSparkles,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import { isInvalidRefreshTokenError } from "@/lib/auth/session-guard";
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: Home },
   { label: "Journal", href: "/journal", icon: SquarePen },
+  { label: "Data Workspace", href: "/data-workspace", icon: TableProperties },
   { label: "AI Analysis", href: "/ai-analysis", icon: Bot },
   { label: "Market Scanner", href: "/market-scanner", icon: ScanLine },
   { label: "Backtest Lab", href: "/backtest-lab", icon: LineChart },

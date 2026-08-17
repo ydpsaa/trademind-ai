@@ -13,6 +13,7 @@ import type { EconomicEvent } from "@/lib/calendar/types";
 import type { DisciplineScore } from "@/lib/discipline/types";
 import type { TradePsychology } from "@/lib/psychology/types";
 import type { RevengeEvent } from "@/lib/revenge/types";
+import { getActivePropProfileForTrade, getPropContextForProfile } from "@/lib/prop-readiness/server";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
 import type { Strategy } from "@/lib/strategies/types";
 import { formatSupabaseError } from "@/lib/supabase/errors";
@@ -121,7 +122,7 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
     nearbyEvents = getNearbyEconomicEventsForTrade(trade.opened_at, (eventData ?? []) as EconomicEvent[]);
   }
 
-  const [{ data: accountData }, { data: strategyData }] = await Promise.all([
+  const [{ data: accountData }, { data: strategyData }, propProfile] = await Promise.all([
     trade.trading_account_id
       ? supabase
           .from("trading_accounts")
@@ -138,7 +139,9 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
           .eq("user_id", userData.user.id)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    getActivePropProfileForTrade(supabase, userData.user.id, trade),
   ]);
+  const propContext = await getPropContextForProfile(supabase, userData.user.id, propProfile);
   const tradingOSContext = buildTradeContext({
     lifecycleStage: "review",
     trade,
@@ -149,6 +152,9 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
     economicEvents: nearbyEvents,
     latestDisciplineScore: disciplineScore,
     revengeEvents,
+    propReadinessProfile: propContext.profile,
+    propReadinessSnapshot: propContext.snapshot,
+    propRuleViolations: propContext.violations,
   });
 
   const memoryResult = await prepareTradeMemory({
@@ -169,6 +175,7 @@ export async function generateTradeReviewAction(_state: ReviewActionState, formD
     revengeEvents,
     ruleChecks,
     memoryResult.similarMemories,
+    tradingOSContext,
   ));
 
   if (!fallbackReview) {

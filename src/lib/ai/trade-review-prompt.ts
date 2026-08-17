@@ -48,6 +48,7 @@ export function buildTradeReviewPrompt({ trade, journalEntry, baselineReview, ec
     "If nearby economic events exist, evaluate news risk explicitly. If no events are available, state that news context is limited. Do not invent price action or news.",
     "Evaluate whether the trade respected the user's own pre-trade checklist. Failed rule checks should affect execution-quality feedback.",
     "Use the Trading OS context as the normalized source for account, strategy, risk, rules, psychology, news, discipline, and data availability. Do not invent missing market data.",
+    "Treat Prop Readiness as an estimate from closed journal trades. Do not claim exact live equity, do not guarantee evaluation success, and tell the user to reconcile hard limits with the provider dashboard.",
     "Use similar trade memories only as historical journal context. Compare repeated execution patterns without claiming causation or inventing details.",
     "Return valid JSON only. Do not wrap JSON in markdown. Scores must be numbers from 0 to 100.",
     "",

@@ -6,6 +6,7 @@ import type { TradePsychology } from "@/lib/psychology/types";
 import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
 import type { Trade, TradeJournalEntry } from "@/lib/trading/types";
+import type { TradingOSContext } from "@/lib/trading-os/types";
 import type { SimilarTradeMemory } from "@/lib/vector-memory/types";
 
 function clamp(value: number) {
@@ -26,6 +27,7 @@ export function generateRulesBasedTradeReview(
   revengeEvents: RevengeEvent[] = [],
   ruleChecks: TradeRuleCheckWithRule[] = [],
   similarTradeMemories: SimilarTradeMemory[] = [],
+  tradingOSContext?: TradingOSContext,
 ) {
   const notes = [
     journalEntry?.reason_for_entry,
@@ -162,6 +164,26 @@ export function generateRulesBasedTradeReview(
   if (similarTradeMemories.length) {
     strengths.push(`Vector Memory found ${similarTradeMemories.length} similar journal trade${similarTradeMemories.length === 1 ? "" : "s"} for comparison.`);
     recommendations.push("Review repeated strengths and mistakes across similar journal trades before changing the strategy.");
+  }
+
+  const propReadiness = tradingOSContext?.prop_readiness;
+  if (propReadiness?.status === "available") {
+    if (propReadiness.readiness_status === "blocked") {
+      riskScore -= 28;
+      psychologyScore -= 10;
+      weaknesses.push("The linked Prop Profile has an estimated hard-limit breach.");
+      recommendations.push("Pause new risk and reconcile limits with the evaluation provider dashboard.");
+    } else if (propReadiness.readiness_status === "high_risk") {
+      riskScore -= 20;
+      weaknesses.push("Prop Readiness indicates elevated account-limit risk.");
+      recommendations.push("Reduce exposure and review remaining daily loss and drawdown limits before another trade.");
+    } else if (propReadiness.readiness_status === "caution") {
+      riskScore -= 10;
+      recommendations.push("Review Prop Profile warnings before adding more account risk.");
+    } else if (propReadiness.readiness_status === "ready") {
+      riskScore += 6;
+      strengths.push("The latest Prop Readiness snapshot is within configured closed-trade limits.");
+    }
   }
 
   const involvedRevengeEvent = revengeEvents.find((event) => event.previous_trade_id === trade.id || event.next_trade_id === trade.id);

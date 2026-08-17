@@ -12,6 +12,7 @@ import { BacktestPreviewCard } from "@/components/dashboard/BacktestPreviewCard"
 import { SignalsPreviewCard } from "@/components/dashboard/SignalsPreviewCard";
 import { PsychologyPreviewCard } from "@/components/dashboard/PsychologyPreviewCard";
 import { RulesPreviewCard } from "@/components/dashboard/RulesPreviewCard";
+import { PropReadinessPreviewCard } from "@/components/dashboard/PropReadinessPreviewCard";
 import { TradingOSSummaryCard } from "@/components/dashboard/TradingOSSummaryCard";
 import { AIInsightPanel } from "@/components/dashboard/AIInsightPanel";
 import { TodaysEventsCard } from "@/components/dashboard/TodaysEventsCard";
@@ -28,6 +29,7 @@ import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule, TradingRule } from "@/lib/rules/types";
 import type { AITradeReview, Trade } from "@/lib/trading/types";
 import type { Signal } from "@/lib/signals/types";
+import type { PropReadinessProfile, PropReadinessSnapshot } from "@/lib/prop-readiness/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface DashboardPageProps {
@@ -189,6 +191,31 @@ async function getRulesPreviewContext(supabase: SupabaseClient, userId: string) 
   };
 }
 
+async function getPropReadinessPreview(supabase: SupabaseClient, userId: string, selectedAccount: string) {
+  let profileQuery = supabase
+    .from("prop_readiness_profiles")
+    .select("id,user_id,trading_account_id,account_scope,name,initial_balance,profit_target_percent,max_daily_loss_percent,max_total_drawdown_percent,drawdown_type,minimum_trading_days,max_risk_per_trade_percent,consistency_rule_percent,timezone,trading_day_start_time,status,started_at,created_at,updated_at")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  if (selectedAccount === MANUAL_ACCOUNT_VALUE) profileQuery = profileQuery.eq("account_scope", "manual").is("trading_account_id", null);
+  else if (selectedAccount !== "all") profileQuery = profileQuery.eq("trading_account_id", selectedAccount);
+
+  const { data: profileData, error: profileError } = await profileQuery.maybeSingle();
+  if (profileError || !profileData) return { profile: null, snapshot: null };
+  const profile = profileData as PropReadinessProfile;
+  const { data: snapshotData, error: snapshotError } = await supabase
+    .from("prop_readiness_snapshots")
+    .select("id,user_id,profile_id,trading_account_id,snapshot_at,current_balance,current_equity,peak_balance,total_pnl,today_pnl,profit_target_progress,daily_loss_used_percent,daily_loss_remaining,drawdown_used_percent,drawdown_remaining,trading_days_count,consistency_score,discipline_score,revenge_risk,readiness_score,readiness_status,data_quality,summary,warnings,recommendations,created_at")
+    .eq("user_id", userId)
+    .eq("profile_id", profile.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return { profile, snapshot: snapshotError ? null : (snapshotData ?? null) as PropReadinessSnapshot | null };
+}
+
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const params = await searchParams;
   const supabase = await createSupabaseServerClient();
@@ -212,7 +239,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const userId = userData.user.id;
   const accounts = await getTradingAccounts(supabase, userId);
   const selectedAccount = normalizeSelectedAccount(params.account, accounts);
-  const [trades, latestReview, todayEvents, latestBacktest, latestSignals, psychologyRows, latestDisciplineScore, latestRevengeEvent, rulesPreview] = await Promise.all([
+  const [trades, latestReview, todayEvents, latestBacktest, latestSignals, psychologyRows, latestDisciplineScore, latestRevengeEvent, rulesPreview, propReadiness] = await Promise.all([
     getDashboardTrades(supabase, userId, selectedAccount),
     getLatestAIReview(supabase, userId),
     getTodayEconomicEvents(supabase),
@@ -222,6 +249,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     getLatestDisciplineScore(supabase, userId),
     getLatestRevengeEvent(supabase, userId),
     getRulesPreviewContext(supabase, userId),
+    getPropReadinessPreview(supabase, userId, selectedAccount),
   ]);
   const dashboardStats = calculateDashboardStats(trades);
 
@@ -258,6 +286,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <SignalsPreviewCard signals={latestSignals} />
           <PsychologyPreviewCard trades={trades} psychologyRows={psychologyRows} latestScore={latestDisciplineScore} latestRevengeEvent={latestRevengeEvent} />
           <RulesPreviewCard rules={rulesPreview.rules} checks={rulesPreview.checks} />
+          <PropReadinessPreviewCard profile={propReadiness.profile} snapshot={propReadiness.snapshot} />
           <PerformanceSummaryCard trades={trades} />
           <BacktestPreviewCard backtest={latestBacktest} />
         </div>

@@ -90,6 +90,9 @@ export function buildTradeContext(input: BuildTradeContextInput): TradingOSConte
     if (score === null) return max;
     return max === null ? score : Math.max(max, score);
   }, null);
+  const propProfile = input.propReadinessProfile ?? null;
+  const propSnapshot = input.propReadinessSnapshot ?? null;
+  const propViolations = input.propRuleViolations ?? [];
 
   return {
     lifecycle_stage: input.lifecycleStage ?? (trade ? "review" : "before_trade"),
@@ -155,8 +158,19 @@ export function buildTradeContext(input: BuildTradeContextInput): TradingOSConte
       market_data: false,
     },
     prop_readiness: {
-      status: "not_available",
-      reason: "Prop Readiness will be available in a later stage.",
+      status: propProfile ? "available" : "not_available",
+      profile_id: propProfile?.id ?? null,
+      profile_name: propProfile?.name ?? null,
+      readiness_status: propSnapshot?.readiness_status ?? "not_available",
+      readiness_score: toNumber(propSnapshot?.readiness_score),
+      daily_loss_used_percent: toNumber(propSnapshot?.daily_loss_used_percent),
+      daily_loss_remaining: toNumber(propSnapshot?.daily_loss_remaining),
+      drawdown_used_percent: toNumber(propSnapshot?.drawdown_used_percent),
+      drawdown_remaining: toNumber(propSnapshot?.drawdown_remaining),
+      profit_target_progress: toNumber(propSnapshot?.profit_target_progress),
+      data_quality: propSnapshot?.data_quality ?? "not_available",
+      active_violations: propViolations.map((violation) => ({ violation_type: violation.violation_type, severity: violation.severity, message: violation.message })),
+      summary: propSnapshot?.summary ?? (propProfile ? "Prop Profile is linked but has not been calculated." : "No Prop Profile is linked to this account scope."),
     },
   };
 }

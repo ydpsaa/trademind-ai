@@ -17,6 +17,7 @@ const pageChrome: Array<{ test: (pathname: string) => boolean; title: string; su
   { test: (pathname) => pathname.startsWith("/journal/"), title: "Trade Detail", subtitle: "Review trade context, checklist, psychology, news, and AI feedback." },
   { test: (pathname) => pathname.startsWith("/ai-analysis"), title: "AI Trade Analysis", subtitle: "AI trading coach reviews generated from your journal data." },
   { test: (pathname) => pathname.startsWith("/psychology"), title: "Psychology", subtitle: "Track emotions, discipline, and behavioral patterns behind your trades." },
+  { test: (pathname) => pathname.startsWith("/prop-readiness"), title: "Prop Readiness", subtitle: "Monitor evaluation limits from real closed-trade journal data." },
   { test: (pathname) => pathname === "/rules", title: "Trading Rules", subtitle: "Build your pre-trade checklist and track rule discipline over time." },
   { test: (pathname) => pathname.startsWith("/rules/new"), title: "Create Rule", subtitle: "Add a manual or automatic pre-trade checklist rule." },
   { test: (pathname) => pathname.startsWith("/rules/"), title: "Edit Rule", subtitle: "Update pre-trade checklist logic." },

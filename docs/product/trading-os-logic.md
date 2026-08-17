@@ -106,6 +106,6 @@ The Trading OS now includes Stage 17 Vector Memory and prepares:
 - Stage 18 CSV Import
 - Stage 19 Bybit Read-Only
 - Stage 20 OKX Read-Only
-- Future Prop Readiness
+- Prop Readiness
 
-Prop Readiness is represented only as a placeholder context object. No score, route, or fake analytics are created in this stage.
+Prop Readiness now contributes account-scoped closed-trade estimates through `TradingOSContext`. The context includes the latest saved readiness state, daily loss and drawdown usage, target progress, and recorded violations. Missing profiles or snapshots remain explicit unavailable states; no score is invented without eligible trades.

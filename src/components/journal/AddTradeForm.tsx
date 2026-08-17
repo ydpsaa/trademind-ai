@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { createManualTradeAction, type TradeActionState } from "@/app/journal/actions";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { emotionLabels } from "@/lib/psychology/emotions";
 import { emotionValues } from "@/lib/psychology/types";
 import type { TradingRule } from "@/lib/rules/types";
+import type { PropReadinessProfile, PropReadinessSnapshot } from "@/lib/prop-readiness/types";
 
 const initialState: TradeActionState = {};
 
@@ -25,7 +27,7 @@ function FormSection({ title, subtitle, children }: { title: string; subtitle: s
   );
 }
 
-export function AddTradeForm({ rules = [] }: { rules?: TradingRule[] }) {
+export function AddTradeForm({ rules = [], propProfile = null, propSnapshot = null }: { rules?: TradingRule[]; propProfile?: PropReadinessProfile | null; propSnapshot?: PropReadinessSnapshot | null }) {
   const [state, formAction, pending] = useActionState(createManualTradeAction, initialState);
   const manualRules = rules.filter((rule) => rule.type !== "auto_check");
   const autoRules = rules.filter((rule) => rule.type === "auto_check");
@@ -33,6 +35,16 @@ export function AddTradeForm({ rules = [] }: { rules?: TradingRule[] }) {
   return (
     <GlassCard className="p-4 md:p-6">
       <form action={formAction} noValidate className="space-y-4">
+        <FormSection title="Pre-Trade Risk" subtitle="Latest Manual Journal Prop Profile snapshot. This warning does not block journaling.">
+          {propProfile ? (
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-medium text-white">{propProfile.name}</span><StatusBadge tone={propSnapshot?.readiness_status === "blocked" ? "negative" : propSnapshot?.readiness_status === "caution" || propSnapshot?.readiness_status === "high_risk" ? "warning" : propSnapshot?.readiness_status === "ready" ? "positive" : "neutral"}>{propSnapshot?.readiness_status?.replaceAll("_", " ") ?? "Not calculated"}</StatusBadge><StatusBadge>Estimated</StatusBadge></div><p className="mt-2 text-sm leading-6 text-zinc-400">{propSnapshot?.summary ?? "Calculate Prop Readiness before using account-limit warnings."}</p></div>
+              <div className="grid shrink-0 grid-cols-3 gap-4 text-sm"><div><div className="text-xs text-zinc-600">Daily</div><div className="mt-1 text-white">{propSnapshot ? `${Math.round(propSnapshot.daily_loss_used_percent)}%` : "N/A"}</div></div><div><div className="text-xs text-zinc-600">Drawdown</div><div className="mt-1 text-white">{propSnapshot ? `${Math.round(propSnapshot.drawdown_used_percent)}%` : "N/A"}</div></div><div><div className="text-xs text-zinc-600">Target</div><div className="mt-1 text-white">{propSnapshot ? `${Math.round(propSnapshot.profit_target_progress)}%` : "N/A"}</div></div></div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 text-sm text-zinc-400 sm:flex-row sm:items-center sm:justify-between"><span>No Manual Journal Prop Profile is configured.</span><Link href="/prop-readiness?new=1" className="font-medium text-white">Create Prop Profile</Link></div>
+          )}
+        </FormSection>
         <FormSection title="Trade Basics" subtitle="Required trade identity and market context.">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <label className="block text-sm">

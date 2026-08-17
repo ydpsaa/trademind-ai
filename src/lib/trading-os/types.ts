@@ -7,6 +7,7 @@ import type { RevengeEvent } from "@/lib/revenge/types";
 import type { TradeRuleCheckWithRule } from "@/lib/rules/types";
 import type { Strategy } from "@/lib/strategies/types";
 import type { Trade } from "@/lib/trading/types";
+import type { PropReadinessContext, PropReadinessProfile, PropReadinessSnapshot, PropRuleViolation } from "@/lib/prop-readiness/types";
 
 export type TradeLifecycleStage = "before_trade" | "trade_entry" | "after_trade" | "review" | "improvement";
 export type TradeReadinessStatus = "allowed" | "caution" | "blocked" | "not_enough_data";
@@ -89,11 +90,6 @@ export interface RevengeContext {
   events: RevengeEvent[];
 }
 
-export interface PropReadinessContextPlaceholder {
-  status: "not_available";
-  reason: string;
-}
-
 export interface TradingOSContext {
   lifecycle_stage: TradeLifecycleStage;
   trade_id: string | null;
@@ -118,7 +114,7 @@ export interface TradingOSContext {
     revenge_events: boolean;
     market_data: false;
   };
-  prop_readiness: PropReadinessContextPlaceholder;
+  prop_readiness: PropReadinessContext;
 }
 
 export interface BuildTradeContextInput {
@@ -131,4 +127,7 @@ export interface BuildTradeContextInput {
   economicEvents?: EconomicEvent[];
   latestDisciplineScore?: DisciplineScore | null;
   revengeEvents?: RevengeEvent[];
+  propReadinessProfile?: PropReadinessProfile | null;
+  propReadinessSnapshot?: PropReadinessSnapshot | null;
+  propRuleViolations?: PropRuleViolation[];
 }

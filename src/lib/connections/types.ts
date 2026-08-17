@@ -11,7 +11,7 @@ export type IntegrationProvider =
 
 export type ConnectionStatus = "connected" | "fallback" | "simulated" | "not_connected" | "coming_soon" | "error";
 
-export type ConnectionMode = "safe_setup" | "read_only_future" | "simulated" | "fallback" | "coming_soon" | "configured";
+export type ConnectionMode = "safe_setup" | "read_only" | "read_only_future" | "simulated" | "fallback" | "coming_soon" | "configured";
 
 export interface IntegrationConnection {
   id: string;

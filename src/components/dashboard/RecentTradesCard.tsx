@@ -28,7 +28,7 @@ export function RecentTradesCard({ className = "lg:col-span-6 2xl:col-span-5", t
           <table className="w-full min-w-[520px] text-left text-xs">
             <thead className="bg-white/[0.04] text-zinc-400">
               <tr>
-                {["Symbol", "Direction", "Result", "PnL", "RR", "Opened"].map((head) => (
+                {["Symbol", "Direction", "Result", "PnL", "RR", "Trade Date"].map((head) => (
                   <th key={head} className="px-2.5 py-2 font-medium">{head}</th>
                 ))}
               </tr>
@@ -41,7 +41,7 @@ export function RecentTradesCard({ className = "lg:col-span-6 2xl:col-span-5", t
                   <td className={trade.result === "Win" ? "px-2.5 py-2.5 text-emerald-300" : trade.result === "Loss" ? "px-2.5 py-2.5 text-rose-300" : "px-2.5 py-2.5 text-zinc-400"}>{trade.result || "N/A"}</td>
                   <td className={`px-2.5 py-2.5 font-mono ${(trade.pnl ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatMoney(Number(trade.pnl) || 0)}</td>
                   <td className="px-2.5 py-2.5 font-mono">{formatNumber(trade.rr)}</td>
-                  <td className="px-2.5 py-2.5 text-zinc-400">{formatDateTime(trade.opened_at)}</td>
+                  <td className="px-2.5 py-2.5 text-zinc-400">{formatDateTime(trade.opened_at || trade.closed_at)}</td>
                 </tr>
               ))}
             </tbody>

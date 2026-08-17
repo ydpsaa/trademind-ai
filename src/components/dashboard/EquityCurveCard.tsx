@@ -4,14 +4,14 @@ import type { Trade } from "@/lib/trading/types";
 
 function buildEquityPoints(trades: Trade[]) {
   const closedTrades = trades
-    .filter((trade) => trade.opened_at && trade.pnl !== null && trade.pnl !== undefined)
-    .sort((a, b) => new Date(a.opened_at ?? "").getTime() - new Date(b.opened_at ?? "").getTime());
+    .filter((trade) => (trade.opened_at || trade.closed_at) && trade.pnl !== null && trade.pnl !== undefined)
+    .sort((a, b) => new Date(a.opened_at || a.closed_at || "").getTime() - new Date(b.opened_at || b.closed_at || "").getTime());
 
   let cumulativePnl = 0;
   return closedTrades.map((trade) => {
     cumulativePnl += Number(trade.pnl ?? 0);
     return {
-      date: trade.opened_at ?? "",
+      date: trade.opened_at || trade.closed_at || "",
       value: cumulativePnl,
     };
   });

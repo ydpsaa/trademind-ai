@@ -52,9 +52,9 @@ export default async function JournalPage({ searchParams }: JournalPageProps) {
         .from("trades")
         .select("id,user_id,trading_account_id,source,symbol,market_type,direction,entry_price,exit_price,stop_loss,take_profit,position_size,risk_percent,rr,pnl,fees,result,session,strategy_id,opened_at,closed_at,created_at,updated_at,trade_journal_entries(id,trade_id,user_id,reason_for_entry,emotion_before,emotion_after,screenshot_url,notes_before,notes_after,mistake_tags,setup_tags,created_at,updated_at)")
         .eq("user_id", userData.user.id)
-        .gte("opened_at", range.startIso)
-        .lte("opened_at", range.endIso)
-        .order("opened_at", { ascending: false })
+        .or(`and(opened_at.gte.${range.startIso},opened_at.lte.${range.endIso}),and(opened_at.is.null,closed_at.gte.${range.startIso},closed_at.lte.${range.endIso})`)
+        .order("opened_at", { ascending: false, nullsFirst: false })
+        .order("closed_at", { ascending: false, nullsFirst: false })
         .limit(250);
 
       if (source === "manual") {

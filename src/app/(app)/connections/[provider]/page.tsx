@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Bot, CalendarDays, Cable, Database, LineChart, Radio, ShieldCheck, ShieldOff, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ConnectionStatusButton } from "@/components/connections/ConnectionStatusButton";
+import { BybitConnectionPanel } from "@/components/connections/BybitConnectionPanel";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatAIModelLabel } from "@/lib/ai/display";
@@ -10,6 +11,7 @@ import { getConfiguredAIModel, getConfiguredAIProvider, isConfiguredAIProviderAv
 import { isAdminUser } from "@/lib/auth/admin";
 import { connectionStatusTone, deriveRuntimeStatus, getProvider } from "@/lib/connections/connection-status";
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, IntegrationProvider, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
+import type { BybitConnectionSummary, BybitEnvironment } from "@/lib/bybit/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -58,15 +60,51 @@ function patchMessage(message: string) {
 
 async function getConnectionRecord(provider: IntegrationProvider) {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { record: null, error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, user: null };
+  if (!supabase) return { record: null, error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { record: null, error: "You must be signed in to view connection details.", calendarReadable: false, sessionPresent: false, user: null };
+  if (userError || !userData.user) return { record: null, error: "You must be signed in to view connection details.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null };
 
-  const [connectionResult, calendarResult] = await Promise.all([
+  const [connectionResult, calendarResult, accountResult] = await Promise.all([
     supabase.from("integration_connections").select("id,user_id,provider,status,mode,display_name,metadata,last_checked_at,created_at,updated_at").eq("user_id", userData.user.id).eq("provider", provider).maybeSingle(),
     supabase.from("economic_events").select("id", { count: "exact", head: true }),
+    provider === "bybit"
+      ? supabase
+          .from("trading_accounts")
+          .select("id,account_name,status,external_account_id,last_synced_at,metadata")
+          .eq("user_id", userData.user.id)
+          .eq("provider", "bybit")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
+
+  const account = accountResult.data;
+  let importedTrades = 0;
+  if (account?.id) {
+    const { count } = await supabase
+      .from("trades")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userData.user.id)
+      .eq("trading_account_id", account.id)
+      .eq("source", "bybit");
+    importedTrades = count ?? 0;
+  }
+
+  const metadata = account?.metadata && typeof account.metadata === "object" ? (account.metadata as Record<string, unknown>) : {};
+  const bybitConnection: BybitConnectionSummary | null = account
+    ? {
+        accountId: account.id,
+        accountName: account.account_name || "Bybit Account",
+        environment: metadata.environment === "testnet" ? "testnet" : ("mainnet" as BybitEnvironment),
+        externalAccountId: account.external_account_id,
+        apiKeyHint: typeof metadata.apiKeyHint === "string" ? metadata.apiKeyHint : null,
+        lastSyncedAt: account.last_synced_at,
+        importedTrades,
+        status: account.status || "not_connected",
+      }
+    : null;
 
   return {
     record: connectionResult.error ? null : ((connectionResult.data ?? null) as IntegrationConnection | null),
@@ -74,6 +112,7 @@ async function getConnectionRecord(provider: IntegrationProvider) {
     calendarReadable: !calendarResult.error,
     sessionPresent: true,
     user: userData.user as User,
+    bybitConnection,
   };
 }
 
@@ -136,6 +175,12 @@ function formatMetadataLabel(key: string) {
     provider: "AI Service",
     model: "Model",
     readable: "Readable",
+    environment: "Environment",
+    readOnly: "Access Mode",
+    apiKeyHint: "Key Ending",
+    executionEnabled: "Execution",
+    withdrawalAllowed: "Withdrawal Access",
+    credentialsStored: "Secure Credentials",
   };
 
   return labels[key] ?? key.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " ");
@@ -144,6 +189,9 @@ function formatMetadataLabel(key: string) {
 function formatMetadataValue(key: string, value: unknown) {
   if (key === "model") return formatAIModelLabel(String(value ?? "")) ?? "-";
   if (key === "provider") return value ? "configured" : "-";
+  if (key === "apiKeyHint") return value ? `••••${String(value)}` : "-";
+  if (key === "executionEnabled" || key === "withdrawalAllowed") return value ? "enabled" : "disabled";
+  if (key === "credentialsStored") return value ? "stored" : "removed";
   if (typeof value === "boolean") return value ? "yes" : "no";
   return String(value ?? "-");
 }
@@ -248,6 +296,8 @@ export default async function ConnectionDetailPage({ params }: ConnectionDetailP
         </GlassCard>
 
         {context.error ? <GlassCard className="border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">{context.error}</GlassCard> : null}
+
+        {provider.provider === "bybit" ? <BybitConnectionPanel connection={context.bybitConnection} /> : null}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <GlassCard className="p-4">

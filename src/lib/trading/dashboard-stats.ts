@@ -5,15 +5,16 @@ import type { Trade } from "@/lib/trading/types";
 export function calculateDashboardStats(trades: Trade[]) {
   const monthRange = getPeriodRange("month");
   const monthTrades = trades.filter((trade) => {
-    if (!trade.opened_at) return false;
-    const openedAt = new Date(trade.opened_at);
-    return openedAt >= monthRange.start && openedAt <= monthRange.end;
+    const tradeTime = trade.opened_at || trade.closed_at;
+    if (!tradeTime) return false;
+    const occurredAt = new Date(tradeTime);
+    return occurredAt >= monthRange.start && occurredAt <= monthRange.end;
   });
 
   const allStats = calculateTradeStats(trades);
   const monthStats = calculateTradeStats(monthTrades);
   const recentTrades = [...trades]
-    .sort((a, b) => new Date(b.opened_at || b.created_at || 0).getTime() - new Date(a.opened_at || a.created_at || 0).getTime())
+    .sort((a, b) => new Date(b.opened_at || b.closed_at || b.created_at || 0).getTime() - new Date(a.opened_at || a.closed_at || a.created_at || 0).getTime())
     .slice(0, 5);
 
   return {

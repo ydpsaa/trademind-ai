@@ -23,7 +23,7 @@ export function JournalTradeTable({ trades, emptyText = "No trades found for thi
     return (
       <GlassCard className="p-8 text-center">
         <h2 className="text-lg font-semibold">{emptyText}</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-400">Manual trades will appear here with performance stats, execution notes, and trade detail links.</p>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-400">Manual and imported trades will appear here with performance stats, execution notes, and trade detail links.</p>
         <Link href="/journal/new" className="mt-6 inline-grid h-10 place-items-center rounded-xl border border-white/10 bg-white/12 px-4 text-sm font-medium">
           Add your first trade
         </Link>
@@ -41,7 +41,7 @@ export function JournalTradeTable({ trades, emptyText = "No trades found for thi
         <table className="w-full min-w-[980px] text-left text-xs">
           <thead className="bg-white/[0.04] text-zinc-400">
             <tr>
-              {["Symbol", "Direction", "Result", "PnL", "RR", "Risk %", "Session", "Opened At", "Source", "Actions"].map((head) => (
+              {["Symbol", "Direction", "Result", "PnL", "RR", "Risk %", "Session", "Trade Date", "Source", "Actions"].map((head) => (
                 <th key={head} className="px-3 py-2 font-medium">{head}</th>
               ))}
             </tr>
@@ -56,7 +56,7 @@ export function JournalTradeTable({ trades, emptyText = "No trades found for thi
                 <td className="px-3 py-3 font-mono">{formatNumber(trade.rr)}</td>
                 <td className="px-3 py-3 font-mono">{formatNumber(trade.risk_percent)}</td>
                 <td className="px-3 py-3">{trade.session || "N/A"}</td>
-                <td className="px-3 py-3 text-zinc-400">{formatDateTime(trade.opened_at)}</td>
+                <td className="px-3 py-3 text-zinc-400">{formatDateTime(trade.opened_at || trade.closed_at)}</td>
                 <td className="px-3 py-3 capitalize">{trade.source || "manual"}</td>
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-2">

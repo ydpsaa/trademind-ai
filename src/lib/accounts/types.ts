@@ -11,6 +11,8 @@ export interface TradingAccount {
   currency?: string | null;
   status: AccountStatus | string | null;
   metadata?: Record<string, unknown> | null;
+  external_account_id?: string | null;
+  last_synced_at?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }

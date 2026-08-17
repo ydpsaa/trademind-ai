@@ -91,4 +91,4 @@ Run this checklist before deployment and after important changes.
 - No service role key is imported into client components.
 - No AI key is imported into client components.
 - No real trading execution exists.
-- Bybit, OKX, and MetaTrader remain future/read-only-first integrations.
+- Bybit and OKX use read-only import only. MetaTrader remains a future bridge integration.

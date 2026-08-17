@@ -24,7 +24,7 @@ Future import stages will create or use `trading_accounts` rows:
 
 - CSV Import can create Manual or CSV account sources.
 - Bybit Read-Only can create a Bybit account source.
-- OKX Read-Only can create an OKX account source.
+- OKX Read-Only creates an OKX account source after the provider confirms a read-only API key.
 - MetaTrader bridge can create a MetaTrader account source.
 
 Imported trades should link to `trades.trading_account_id` and keep `user_id` set to the current authenticated user.

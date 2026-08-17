@@ -4,6 +4,7 @@ import { ArrowLeft, Bot, CalendarDays, Cable, Database, LineChart, Radio, Shield
 import { AppShell } from "@/components/layout/AppShell";
 import { ConnectionStatusButton } from "@/components/connections/ConnectionStatusButton";
 import { BybitConnectionPanel } from "@/components/connections/BybitConnectionPanel";
+import { OkxConnectionPanel } from "@/components/connections/OkxConnectionPanel";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { formatAIModelLabel } from "@/lib/ai/display";
@@ -12,6 +13,7 @@ import { isAdminUser } from "@/lib/auth/admin";
 import { connectionStatusTone, deriveRuntimeStatus, getProvider } from "@/lib/connections/connection-status";
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, IntegrationProvider, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
 import type { BybitConnectionSummary, BybitEnvironment } from "@/lib/bybit/types";
+import type { OkxConnectionSummary, OkxEnvironment } from "@/lib/okx/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -60,20 +62,22 @@ function patchMessage(message: string) {
 
 async function getConnectionRecord(provider: IntegrationProvider) {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { record: null, error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null };
+  if (!supabase) return { record: null, error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null, okxConnection: null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { record: null, error: "You must be signed in to view connection details.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null };
+  if (userError || !userData.user) return { record: null, error: "You must be signed in to view connection details.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null, okxConnection: null };
+
+  const accountProvider = provider === "bybit" || provider === "okx" ? provider : null;
 
   const [connectionResult, calendarResult, accountResult] = await Promise.all([
     supabase.from("integration_connections").select("id,user_id,provider,status,mode,display_name,metadata,last_checked_at,created_at,updated_at").eq("user_id", userData.user.id).eq("provider", provider).maybeSingle(),
     supabase.from("economic_events").select("id", { count: "exact", head: true }),
-    provider === "bybit"
+    accountProvider
       ? supabase
           .from("trading_accounts")
           .select("id,account_name,status,external_account_id,last_synced_at,metadata")
           .eq("user_id", userData.user.id)
-          .eq("provider", "bybit")
+          .eq("provider", accountProvider)
           .order("updated_at", { ascending: false })
           .limit(1)
           .maybeSingle()
@@ -82,22 +86,34 @@ async function getConnectionRecord(provider: IntegrationProvider) {
 
   const account = accountResult.data;
   let importedTrades = 0;
-  if (account?.id) {
+  if (account?.id && accountProvider) {
     const { count } = await supabase
       .from("trades")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userData.user.id)
       .eq("trading_account_id", account.id)
-      .eq("source", "bybit");
+      .eq("source", accountProvider);
     importedTrades = count ?? 0;
   }
 
   const metadata = account?.metadata && typeof account.metadata === "object" ? (account.metadata as Record<string, unknown>) : {};
-  const bybitConnection: BybitConnectionSummary | null = account
+  const bybitConnection: BybitConnectionSummary | null = account && provider === "bybit"
     ? {
         accountId: account.id,
         accountName: account.account_name || "Bybit Account",
         environment: metadata.environment === "testnet" ? "testnet" : ("mainnet" as BybitEnvironment),
+        externalAccountId: account.external_account_id,
+        apiKeyHint: typeof metadata.apiKeyHint === "string" ? metadata.apiKeyHint : null,
+        lastSyncedAt: account.last_synced_at,
+        importedTrades,
+        status: account.status || "not_connected",
+      }
+    : null;
+  const okxConnection: OkxConnectionSummary | null = account && provider === "okx"
+    ? {
+        accountId: account.id,
+        accountName: account.account_name || "OKX Account",
+        environment: metadata.environment === "demo" ? "demo" : ("live" as OkxEnvironment),
         externalAccountId: account.external_account_id,
         apiKeyHint: typeof metadata.apiKeyHint === "string" ? metadata.apiKeyHint : null,
         lastSyncedAt: account.last_synced_at,
@@ -113,6 +129,7 @@ async function getConnectionRecord(provider: IntegrationProvider) {
     sessionPresent: true,
     user: userData.user as User,
     bybitConnection,
+    okxConnection,
   };
 }
 
@@ -298,6 +315,7 @@ export default async function ConnectionDetailPage({ params }: ConnectionDetailP
         {context.error ? <GlassCard className="border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">{context.error}</GlassCard> : null}
 
         {provider.provider === "bybit" ? <BybitConnectionPanel connection={context.bybitConnection} /> : null}
+        {provider.provider === "okx" ? <OkxConnectionPanel connection={context.okxConnection} /> : null}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <GlassCard className="p-4">

@@ -8,7 +8,7 @@ import type {
   StructureState,
 } from "@/lib/scanner/types";
 
-export type MarketDataProvider = "twelve-data";
+export type MarketDataProvider = "bybit" | "twelve-data";
 export type MarketDataStatus = "connected" | "not_connected" | "error";
 
 export interface MarketCandle {

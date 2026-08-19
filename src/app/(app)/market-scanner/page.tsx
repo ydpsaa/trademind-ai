@@ -6,7 +6,9 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { EconomicEvent } from "@/lib/calendar/types";
 import { isAdminUser } from "@/lib/auth/admin";
+import { getMarketDataProvider, isMarketDataConfigured } from "@/lib/market-data/config";
 import { formatMarketPrice } from "@/lib/market-data/instruments";
+import { getMarketDataSymbols } from "@/lib/market-data/instruments";
 import { getMarketSnapshots, isMarketSnapshotStale } from "@/lib/market-data/repository";
 import { marketSnapshotToScanResult } from "@/lib/market-data/scanner-adapter";
 import { filterMarketScans, getBiasTone, getNewsRiskTone, getSetupTone, parseScannerFilters, scannerFilterHref } from "@/lib/scanner/filters";
@@ -51,6 +53,9 @@ function SummaryCard({ label, value, icon: Icon }: { label: string; value: strin
 export default async function MarketScannerPage({ searchParams }: MarketScannerPageProps) {
   const params = await searchParams;
   const filters = parseScannerFilters(params);
+  const provider = getMarketDataProvider();
+  const providerReady = isMarketDataConfigured();
+  const supportedSymbols = getMarketDataSymbols(provider);
   const user = await getCurrentUser();
   const supabase = await createSupabaseServerClient();
   const now = new Date();
@@ -78,7 +83,7 @@ export default async function MarketScannerPage({ searchParams }: MarketScannerP
             <div className="grid h-11 w-11 place-items-center rounded-2xl border border-white/10 bg-white/[0.06]"><Radar className="h-5 w-5 text-zinc-300" /></div>
             <div><h2 className="text-xl font-semibold">Market Scanner</h2><p className="mt-1 text-sm text-zinc-500">Only stored provider candles are analyzed. No synthetic prices are generated.</p></div>
           </div>
-          <StatusBadge tone={results.length ? "positive" : "neutral"}>{results.length ? "Real Data" : "Not Connected"}</StatusBadge>
+          <StatusBadge tone={results.length ? "positive" : providerReady ? "warning" : "neutral"}>{results.length ? "Real Data" : providerReady ? "Ready to Sync" : "Not Connected"}</StatusBadge>
         </div>
 
         {syncState ? <GlassCard className={`p-4 text-sm ${syncState === "success" ? "border-emerald-300/20 text-emerald-200" : "border-amber-300/20 text-amber-100"}`}>{syncMessage || (syncState === "denied" ? "Admin access is required to update platform market data." : "Market data update did not complete.")}</GlassCard> : null}
@@ -86,11 +91,11 @@ export default async function MarketScannerPage({ searchParams }: MarketScannerP
         <GlassCard className="p-5 md:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl">
-              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Clock3 className="h-4 w-4 text-zinc-400" />{results.length ? `${results.length} verified snapshots available` : "Market Data Service required"}</div>
-              <h3 className="mt-3 text-2xl font-semibold text-white">{results.length ? "Rule-based market intelligence from real candles." : "Connect a provider to activate market intelligence."}</h3>
+              <div className="flex items-center gap-2 text-sm font-semibold text-white"><Clock3 className="h-4 w-4 text-zinc-400" />{results.length ? `${results.length} verified snapshots available` : providerReady ? `${supportedSymbols.length} public markets available` : "Market Data Service required"}</div>
+              <h3 className="mt-3 text-2xl font-semibold text-white">{results.length ? "Rule-based market intelligence from real candles." : providerReady ? "Public market feed is connected and ready for its first update." : "Connect a provider to activate market intelligence."}</h3>
               <p className="mt-3 text-sm leading-6 text-zinc-500">Confidence reflects deterministic structure evidence and data coverage. It is not a probability of profit or financial advice.</p>
             </div>
-            {isAdminUser(user) ? <MarketDataSyncForm timeframe={filters.timeframe} /> : <Link href="/connections/market-data" className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/10">Market Data Setup</Link>}
+            {isAdminUser(user) ? <MarketDataSyncForm timeframe={filters.timeframe} symbols={supportedSymbols} provider={provider} /> : <Link href="/connections/market-data" className="inline-flex h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-semibold text-zinc-200 transition hover:bg-white/10">Market Data Setup</Link>}
           </div>
         </GlassCard>
 
@@ -138,7 +143,7 @@ export default async function MarketScannerPage({ searchParams }: MarketScannerP
             })}
           </div>
         ) : (
-          <GlassCard className="p-8 text-center"><h2 className="text-lg font-semibold">{results.length ? "No markets match these filters." : "No verified market data yet."}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-zinc-500">{results.length ? "Adjust filters to view available snapshots." : "Configure the Market Data Service and run an admin update. Fake prices and scanner scores remain disabled."}</p></GlassCard>
+          <GlassCard className="p-8 text-center"><h2 className="text-lg font-semibold">{results.length ? "No markets match these filters." : "No verified market data yet."}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-zinc-500">{results.length ? "Adjust filters to view available snapshots." : providerReady ? "Run the first admin update to store verified public candles. Fake prices and scanner scores remain disabled." : "Configure the Market Data Service and run an admin update. Fake prices and scanner scores remain disabled."}</p></GlassCard>
         )}
 
         {snapshotResult.error && !snapshotResult.error.includes("market_snapshots") ? <GlassCard className="border-amber-300/20 p-4 text-sm text-amber-100">Market data could not be loaded.</GlassCard> : null}

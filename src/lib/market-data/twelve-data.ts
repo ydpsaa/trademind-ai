@@ -55,8 +55,9 @@ function safeProviderError(response: ProviderResponse) {
 
 export async function fetchTwelveDataCandles({ apiKey, symbol, timeframe, outputSize = 120 }: FetchInput): Promise<MarketCandle[]> {
   const instrument = getMarketInstrument(symbol);
+  if (!instrument.twelveDataSymbol) throw new Error("MARKET_DATA_SYMBOL_UNAVAILABLE");
   const params = new URLSearchParams({
-    symbol: instrument.providerSymbol,
+    symbol: instrument.twelveDataSymbol,
     interval: intervalMap[timeframe],
     outputsize: String(Math.min(500, Math.max(30, outputSize))),
     timezone: "UTC",

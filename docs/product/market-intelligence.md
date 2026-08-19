@@ -6,13 +6,13 @@ Market Intelligence converts verified OHLC candles into a consistent market-stru
 
 The data path is:
 
-1. An administrator requests one instrument and timeframe update.
+1. An administrator requests one instrument or all supported instruments for a timeframe.
 2. A server-only provider adapter makes one external request.
 3. The response is validated and stored in `market_candles`.
 4. The rule-based analyzer derives structure fields and stores `market_snapshots`.
 5. Authenticated users read stored snapshots through Market Scanner.
 
-Provider credentials remain server-side. Normal page navigation never calls the external provider and cannot consume provider credits.
+Normal page navigation never calls the external provider. The current public feed does not require credentials; future provider credentials remain server-side.
 
 ## Real-data rules
 
@@ -30,18 +30,26 @@ Provider credentials remain server-side. Normal page navigation never calls the 
 
 Authenticated users have read-only access to candles and snapshots. Trusted server code performs writes. Sync-run visibility is limited to the authenticated user who requested the run.
 
-## Current provider adapter
+## Current provider adapters
 
-The first adapter targets Twelve Data and is enabled with server environment variables:
+The default adapter uses Bybit public market data and does not require an API key:
+
+```text
+MARKET_DATA_PROVIDER=bybit
+```
+
+Current verified coverage includes spot candles for `BTCUSDT` and `ETHUSDT`, plus Bybit linear contracts for `XAUUSDT`, `XAGUSDT`, `CLUSDT`, `BZUSDT`, `SPXUSDT`, and `QQQUSDT`. These contracts retain their actual Bybit symbols. They are not presented as substitutes for `XAUUSD`, `EURUSD`, `NAS100`, or other different instruments.
+
+The Twelve Data adapter remains available for a future licensed feed:
 
 ```text
 MARKET_DATA_PROVIDER=twelve-data
 TWELVE_DATA_API_KEY=<server-side key>
 ```
 
-`MARKET_DATA_API_KEY` remains a supported generic fallback variable. Never expose either key in a client component.
+`MARKET_DATA_API_KEY` remains a supported generic fallback variable. Never expose either key in a client component. An unavailable instrument remains empty rather than being substituted with another symbol.
 
-The free plan is suitable for controlled Forex and crypto validation, but provider plan coverage varies by instrument. Gold and index requests may require a paid data entitlement. An unavailable instrument remains empty rather than being substituted with another symbol.
+The free hosting plan does not provide frequent scheduled jobs, so refresh is currently an explicit admin action. Stored snapshots are shared read-only across authenticated users and labeled stale when their source candle ages beyond the timeframe threshold.
 
 ## Analysis v1
 

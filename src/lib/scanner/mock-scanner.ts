@@ -9,6 +9,12 @@ const symbolMeta: Record<MarketSymbol, { marketType: MarketType; base: number; p
   US30: { marketType: "Indices", base: 39753.4, precision: 1 },
   BTCUSDT: { marketType: "Crypto", base: 66521.8, precision: 1 },
   ETHUSDT: { marketType: "Crypto", base: 3228.4, precision: 1 },
+  XAUUSDT: { marketType: "Gold", base: 2378.65, precision: 2 },
+  XAGUSDT: { marketType: "Commodities", base: 31.5, precision: 3 },
+  CLUSDT: { marketType: "Commodities", base: 74.2, precision: 2 },
+  BZUSDT: { marketType: "Commodities", base: 78.1, precision: 2 },
+  SPXUSDT: { marketType: "Indices", base: 5600, precision: 2 },
+  QQQUSDT: { marketType: "Indices", base: 480, precision: 2 },
 };
 
 const structureStates: StructureState[] = ["trending", "ranging", "reversal", "unclear"];

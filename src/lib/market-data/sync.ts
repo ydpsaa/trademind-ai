@@ -1,6 +1,7 @@
 import "server-only";
 
 import { analyzeMarketCandles } from "@/lib/market-data/analysis";
+import { getMarketDataProvider } from "@/lib/market-data/config";
 import { fetchMarketCandles } from "@/lib/market-data/provider";
 import type { MarketDataSyncResult } from "@/lib/market-data/types";
 import type { MarketSymbol, ScannerTimeframe } from "@/lib/scanner/types";
@@ -29,7 +30,7 @@ function safeErrorCode(error: unknown) {
 
 export async function syncMarketData({ requestedBy, symbol, timeframe }: SyncInput): Promise<MarketDataSyncResult> {
   const service = createSupabaseServiceRoleClient();
-  const provider = "twelve-data";
+  const provider = getMarketDataProvider();
   const { data: run, error: runError } = await service
     .from("market_data_sync_runs")
     .insert({ requested_by: requestedBy, provider, symbol, timeframe, status: "running" })

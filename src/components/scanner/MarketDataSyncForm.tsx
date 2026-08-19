@@ -3,7 +3,8 @@
 import { useFormStatus } from "react-dom";
 import { RefreshCw } from "lucide-react";
 import { syncMarketDataAction } from "@/app/(app)/market-scanner/actions";
-import { scannerSymbols, scannerTimeframes, type ScannerTimeframe } from "@/lib/scanner/types";
+import type { MarketDataProvider } from "@/lib/market-data/types";
+import { scannerTimeframes, type MarketSymbol, type ScannerTimeframe } from "@/lib/scanner/types";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -14,13 +15,14 @@ function SubmitButton() {
     </button>
   );
 }
-export function MarketDataSyncForm({ timeframe }: { timeframe: ScannerTimeframe }) {
+export function MarketDataSyncForm({ timeframe, symbols, provider }: { timeframe: ScannerTimeframe; symbols: MarketSymbol[]; provider: MarketDataProvider }) {
   return (
     <form action={syncMarketDataAction} className="flex flex-wrap items-end gap-2">
       <label className="space-y-1.5">
         <span className="block text-[11px] text-zinc-500">Instrument</span>
-        <select name="symbol" defaultValue="EURUSD" className="h-10 rounded-xl border border-white/10 bg-black/50 px-3 text-sm text-white">
-          {scannerSymbols.map((symbol) => <option key={symbol} value={symbol}>{symbol}</option>)}
+        <select name="symbol" defaultValue="all" className="h-10 rounded-xl border border-white/10 bg-black/50 px-3 text-sm text-white">
+          <option value="all">All {provider === "bybit" ? "Bybit" : "provider"} markets</option>
+          {symbols.map((symbol) => <option key={symbol} value={symbol}>{symbol}</option>)}
         </select>
       </label>
       <label className="space-y-1.5">

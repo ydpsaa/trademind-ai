@@ -30,6 +30,7 @@ import type { TradeRuleCheckWithRule, TradingRule } from "@/lib/rules/types";
 import type { AITradeReview, Trade } from "@/lib/trading/types";
 import type { Signal } from "@/lib/signals/types";
 import type { PropReadinessProfile, PropReadinessSnapshot } from "@/lib/prop-readiness/types";
+import { getMarketSnapshots } from "@/lib/market-data/repository";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface DashboardPageProps {
@@ -239,7 +240,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const userId = userData.user.id;
   const accounts = await getTradingAccounts(supabase, userId);
   const selectedAccount = normalizeSelectedAccount(params.account, accounts);
-  const [trades, latestReview, todayEvents, latestBacktest, latestSignals, psychologyRows, latestDisciplineScore, latestRevengeEvent, rulesPreview, propReadiness] = await Promise.all([
+  const [trades, latestReview, todayEvents, latestBacktest, latestSignals, psychologyRows, latestDisciplineScore, latestRevengeEvent, rulesPreview, propReadiness, marketSnapshotResult] = await Promise.all([
     getDashboardTrades(supabase, userId, selectedAccount),
     getLatestAIReview(supabase, userId),
     getTodayEconomicEvents(supabase),
@@ -250,6 +251,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     getLatestRevengeEvent(supabase, userId),
     getRulesPreviewContext(supabase, userId),
     getPropReadinessPreview(supabase, userId, selectedAccount),
+    getMarketSnapshots("15m"),
   ]);
   const dashboardStats = calculateDashboardStats(trades);
 
@@ -280,7 +282,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             ruleChecks={rulesPreview.checks}
           />
           <EquityCurveCard trades={trades} />
-          <MarketsCard />
+          <MarketsCard snapshots={marketSnapshotResult.snapshots} />
           <RecentTradesCard trades={dashboardStats.recentTrades} />
           <AITradeReviewCard review={latestReview} />
           <SignalsPreviewCard signals={latestSignals} />

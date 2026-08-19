@@ -112,8 +112,8 @@ export const userConnectionProviders: ProviderCard[] = [
     mode: "safe_setup",
     defaultStatus: "not_connected",
     actionLabel: "Test Status",
-    setupRequirements: ["Server-side provider selection", "Server-side API key", "Admin-controlled data refresh"],
-    safetyNotes: ["Provider keys never reach client components.", "The app displays stored verified candles only; it does not synthesize prices."],
+    setupRequirements: ["Server-side provider selection", "Admin-controlled data refresh", "API key only when a future provider requires one"],
+    safetyNotes: ["The current public market feed does not require an API key.", "The app displays stored verified candles only; it does not synthesize prices."],
     roadmap: ["Scheduled candle refresh", "Historical backtest data", "Streaming quotes"],
   },
   {

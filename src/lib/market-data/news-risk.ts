@@ -9,6 +9,12 @@ const symbolCurrencies: Record<MarketSymbol, string[]> = {
   US30: ["USD"],
   BTCUSDT: ["USD"],
   ETHUSDT: ["USD"],
+  XAUUSDT: ["USD"],
+  XAGUSDT: ["USD"],
+  CLUSDT: ["USD"],
+  BZUSDT: ["USD"],
+  SPXUSDT: ["USD"],
+  QQQUSDT: ["USD"],
 };
 
 export function getMarketNewsRisk(symbol: MarketSymbol, events: EconomicEvent[], now = new Date()): NewsRiskLevel {

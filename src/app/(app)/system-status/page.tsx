@@ -15,6 +15,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/trading/stats";
 import { getCurrentUsagePeriod, getUserUsage, type UserUsageSnapshot } from "@/lib/usage/user-usage";
 import { isVectorMemoryConfigured } from "@/lib/vector-memory/embedding-client";
+import { isMarketDataConfigured } from "@/lib/market-data/config";
 
 function formatDateTime(value: string | null) {
   if (!value) return "Not checked";
@@ -57,14 +58,14 @@ async function getSystemContext() {
   };
 
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { records: [], error: "Database service is not configured.", calendarReadable: false, calendarSource: "not_connected", sessionPresent: false, aiUsageSummary: emptyUsageSummary };
+  if (!supabase) return { records: [], error: "Database service is not configured.", calendarReadable: false, calendarSource: "not_connected", sessionPresent: false, aiUsageSummary: emptyUsageSummary, marketSnapshotCount: 0, latestMarketSourceTime: null as string | null };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { records: [], error: "You must be signed in to view system status.", calendarReadable: false, calendarSource: "not_connected", sessionPresent: false, aiUsageSummary: emptyUsageSummary };
+  if (userError || !userData.user) return { records: [], error: "You must be signed in to view system status.", calendarReadable: false, calendarSource: "not_connected", sessionPresent: false, aiUsageSummary: emptyUsageSummary, marketSnapshotCount: 0, latestMarketSourceTime: null as string | null };
 
   const { periodStart, periodEnd } = getCurrentUsagePeriod();
 
-  const [recordsResult, calendarResult, usage, latestUsageResult, monthlyUsageResult] = await Promise.all([
+  const [recordsResult, calendarResult, usage, latestUsageResult, monthlyUsageResult, marketSnapshotResult, latestMarketSnapshotResult] = await Promise.all([
     supabase.from("integration_connections").select("id,user_id,provider,status,mode,display_name,metadata,last_checked_at,created_at,updated_at").eq("user_id", userData.user.id).order("updated_at", { ascending: false }),
     supabase.from("economic_events").select("source").limit(25),
     getUserUsage(userData.user.id),
@@ -82,6 +83,8 @@ async function getSystemContext() {
       .eq("user_id", userData.user.id)
       .gte("created_at", periodStart)
       .lt("created_at", periodEnd),
+    supabase.from("market_snapshots").select("id", { count: "exact", head: true }),
+    supabase.from("market_snapshots").select("source_time").order("source_time", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const monthlyCosts = monthlyUsageResult.error ? [] : ((monthlyUsageResult.data ?? []) as Pick<AIUsageLog, "estimated_cost">[]);
@@ -104,6 +107,8 @@ async function getSystemContext() {
       lastModel: formatAIModelLabel(latestUsage?.model) ?? "None",
       estimatedCostThisMonth,
     },
+    marketSnapshotCount: marketSnapshotResult.error ? 0 : marketSnapshotResult.count ?? 0,
+    latestMarketSourceTime: latestMarketSnapshotResult.error ? null : latestMarketSnapshotResult.data?.source_time ?? null,
   };
 }
 
@@ -329,6 +334,8 @@ export default async function SystemStatusPage() {
 
   const context = await getSystemContext();
   const statuses = systemServiceProviders.map((provider) => runtimeStatus(provider, context.records, context));
+  const marketDataConfigured = isMarketDataConfigured();
+  const marketDataReady = marketDataConfigured && context.marketSnapshotCount > 0;
 
   return (
     <AppShell title="System Status" subtitle="Internal platform services and safe runtime checks." user={userData.user}>
@@ -357,8 +364,8 @@ export default async function SystemStatusPage() {
         <div className="grid gap-4 xl:grid-cols-2">
           <EngineCard icon={Database} title="Trading Accounts Model" status="connected" mode="User-scoped account selector active" powers={["Dashboard filters", "Journal filters", "Future CSV/import accounts"]} />
           <EngineCard icon={MemoryStick} title="Vector Memory" status={isVectorMemoryConfigured() ? "connected" : "not_connected"} mode={isVectorMemoryConfigured() ? "Local embeddings configured" : "Waiting for embedding service"} powers={["Similar trade retrieval", "AI Review context", "Private journal memory"]} />
-          <EngineCard icon={LineChart} title="Market Data Feed" status="not_connected" mode="Waiting for provider integration" powers={["Market scanner", "Dashboard market panel", "Signal validation"]} />
-          <EngineCard icon={Activity} title="Scanner Engine" status="not_connected" mode="Waiting for real market data" powers={["SMC checklist", "Bias state", "Setup readiness"]} />
+          <EngineCard icon={LineChart} title="Market Data Feed" status={marketDataReady ? "connected" : marketDataConfigured ? "fallback" : "not_connected"} mode={marketDataReady ? `${context.marketSnapshotCount} verified snapshots stored` : marketDataConfigured ? "Configured, awaiting first data update" : "Waiting for server configuration"} powers={["Verified OHLC candles", "Market scanner", "Future historical backtests"]} />
+          <EngineCard icon={Activity} title="Scanner Engine" status={marketDataReady ? "connected" : "not_connected"} mode={marketDataReady ? `Real-data analysis active${context.latestMarketSourceTime ? ` · latest ${formatDateTime(context.latestMarketSourceTime)}` : ""}` : "Waiting for verified market data"} powers={["SMC checklist", "Bias state", "Setup readiness"]} />
           <EngineCard icon={Radio} title="Backtest Engine" status="not_connected" mode="Waiting for historical market data" powers={["Backtest Lab", "Dashboard latest backtest", "Strategy validation"]} />
           <EngineCard icon={Signal} title="Signal Engine" status="not_connected" mode="Waiting for market data" powers={["Signals page", "Signal detail", "Dashboard signal preview"]} />
         </div>

@@ -55,5 +55,6 @@ export function getSetupTone(setup: ScannerSignalState) {
 export function getNewsRiskTone(risk: NewsRiskLevel) {
   if (risk === "extreme" || risk === "high") return "negative";
   if (risk === "medium") return "warning";
+  if (risk === "unknown") return "neutral";
   return "positive";
 }

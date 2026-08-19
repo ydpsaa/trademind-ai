@@ -59,5 +59,6 @@ export function signalStatusTone(status: SignalStatus) {
 export function signalNewsTone(risk: NewsRiskLevel | null) {
   if (risk === "extreme" || risk === "high") return "negative";
   if (risk === "medium") return "warning";
+  if (risk === "unknown") return "neutral";
   return "positive";
 }

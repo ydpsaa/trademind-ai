@@ -9,6 +9,7 @@ import { connectionStatusTone, deriveRuntimeStatus, summarizeConnections, userCo
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
+import { isMarketDataConfigured } from "@/lib/market-data/config";
 
 function formatDateTime(value: string | null) {
   if (!value) return "Not checked";
@@ -37,14 +38,15 @@ function connectionPatchMessage(message: string) {
 
 async function getConnectionContext() {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { records: [], error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, isAdmin: false, user: null };
+  if (!supabase) return { records: [], error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, isAdmin: false, user: null, marketSnapshotCount: 0 };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { records: [], error: "You must be signed in to view connections.", calendarReadable: false, sessionPresent: false, isAdmin: false, user: null };
+  if (userError || !userData.user) return { records: [], error: "You must be signed in to view connections.", calendarReadable: false, sessionPresent: false, isAdmin: false, user: null, marketSnapshotCount: 0 };
 
-  const [recordsResult, calendarResult] = await Promise.all([
+  const [recordsResult, calendarResult, marketSnapshotResult] = await Promise.all([
     supabase.from("integration_connections").select("id,user_id,provider,status,mode,display_name,metadata,last_checked_at,created_at,updated_at").eq("user_id", userData.user.id).order("updated_at", { ascending: false }),
     supabase.from("economic_events").select("id", { count: "exact", head: true }),
+    supabase.from("market_snapshots").select("id", { count: "exact", head: true }),
   ]);
 
   return {
@@ -54,10 +56,11 @@ async function getConnectionContext() {
     sessionPresent: true,
     isAdmin: isAdminUser(userData.user),
     user: userData.user as User,
+    marketSnapshotCount: marketSnapshotResult.error ? 0 : marketSnapshotResult.count ?? 0,
   };
 }
 
-function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[], context: { calendarReadable: boolean; sessionPresent: boolean }): ProviderRuntimeStatus {
+function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[], context: { calendarReadable: boolean; sessionPresent: boolean; marketSnapshotCount: number }): ProviderRuntimeStatus {
   const stored = deriveRuntimeStatus(provider, records);
 
   if (!stored.lastCheckedAt) {
@@ -98,6 +101,22 @@ function runtimeStatus(provider: ProviderCard, records: IntegrationConnection[],
         mode: "configured",
         label: context.calendarReadable ? "connected" : "error",
         metadata: { readable: context.calendarReadable },
+      };
+    }
+
+    if (provider.provider === "market-data") {
+      const configured = isMarketDataConfigured();
+      const ready = configured && context.marketSnapshotCount > 0;
+      return {
+        ...stored,
+        status: ready ? "connected" : configured ? "fallback" : "not_connected",
+        mode: configured ? "configured" : "safe_setup",
+        label: ready ? "connected" : configured ? "awaiting data" : "not connected",
+        metadata: {
+          marketDataService: configured ? "configured" : "not configured",
+          verifiedSnapshots: context.marketSnapshotCount,
+          refreshMode: "admin controlled",
+        },
       };
     }
   }

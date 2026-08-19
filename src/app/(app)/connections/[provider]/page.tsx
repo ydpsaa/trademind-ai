@@ -14,6 +14,7 @@ import { connectionStatusTone, deriveRuntimeStatus, getProvider } from "@/lib/co
 import type { ConnectionMode, ConnectionStatus, IntegrationConnection, IntegrationProvider, ProviderCard, ProviderRuntimeStatus } from "@/lib/connections/types";
 import type { BybitConnectionSummary, BybitEnvironment } from "@/lib/bybit/types";
 import type { OkxConnectionSummary, OkxEnvironment } from "@/lib/okx/types";
+import { isMarketDataConfigured } from "@/lib/market-data/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -62,14 +63,14 @@ function patchMessage(message: string) {
 
 async function getConnectionRecord(provider: IntegrationProvider) {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) return { record: null, error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null, okxConnection: null };
+  if (!supabase) return { record: null, error: "Data service is not configured.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null, okxConnection: null, marketSnapshotCount: 0 };
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return { record: null, error: "You must be signed in to view connection details.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null, okxConnection: null };
+  if (userError || !userData.user) return { record: null, error: "You must be signed in to view connection details.", calendarReadable: false, sessionPresent: false, user: null, bybitConnection: null, okxConnection: null, marketSnapshotCount: 0 };
 
   const accountProvider = provider === "bybit" || provider === "okx" ? provider : null;
 
-  const [connectionResult, calendarResult, accountResult] = await Promise.all([
+  const [connectionResult, calendarResult, accountResult, marketSnapshotResult] = await Promise.all([
     supabase.from("integration_connections").select("id,user_id,provider,status,mode,display_name,metadata,last_checked_at,created_at,updated_at").eq("user_id", userData.user.id).eq("provider", provider).maybeSingle(),
     supabase.from("economic_events").select("id", { count: "exact", head: true }),
     accountProvider
@@ -82,6 +83,9 @@ async function getConnectionRecord(provider: IntegrationProvider) {
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    provider === "market-data"
+      ? supabase.from("market_snapshots").select("id", { count: "exact", head: true })
+      : Promise.resolve({ count: 0, error: null }),
   ]);
 
   const account = accountResult.data;
@@ -130,10 +134,11 @@ async function getConnectionRecord(provider: IntegrationProvider) {
     user: userData.user as User,
     bybitConnection,
     okxConnection,
+    marketSnapshotCount: marketSnapshotResult.error ? 0 : marketSnapshotResult.count ?? 0,
   };
 }
 
-function resolvedStatus(provider: ProviderCard, record: IntegrationConnection | null, context: { calendarReadable: boolean; sessionPresent: boolean }): ProviderRuntimeStatus {
+function resolvedStatus(provider: ProviderCard, record: IntegrationConnection | null, context: { calendarReadable: boolean; sessionPresent: boolean; marketSnapshotCount: number }): ProviderRuntimeStatus {
   const status = deriveRuntimeStatus(provider, record ? [record] : []);
 
   if (!status.lastCheckedAt) {
@@ -173,6 +178,21 @@ function resolvedStatus(provider: ProviderCard, record: IntegrationConnection | 
         metadata: { readable: context.calendarReadable },
       };
     }
+
+    if (provider.provider === "market-data") {
+      const configured = isMarketDataConfigured();
+      const ready = configured && context.marketSnapshotCount > 0;
+      return {
+        ...status,
+        status: ready ? "connected" : configured ? "fallback" : "not_connected",
+        mode: configured ? "configured" : "safe_setup",
+        metadata: {
+          marketDataService: configured ? "configured" : "not configured",
+          verifiedSnapshots: context.marketSnapshotCount,
+          refreshMode: "admin controlled",
+        },
+      };
+    }
   }
 
   return status;
@@ -198,6 +218,9 @@ function formatMetadataLabel(key: string) {
     executionEnabled: "Execution",
     withdrawalAllowed: "Withdrawal Access",
     credentialsStored: "Secure Credentials",
+    marketDataService: "Market Data Service",
+    verifiedSnapshots: "Verified Snapshots",
+    refreshMode: "Refresh Mode",
   };
 
   return labels[key] ?? key.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " ");

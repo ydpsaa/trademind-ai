@@ -4,7 +4,7 @@ export type MarketBias = "bullish" | "bearish" | "neutral";
 export type StructureState = "trending" | "ranging" | "reversal" | "unclear";
 export type ScannerSignalState = "no-setup" | "watching" | "forming" | "ready";
 export type PremiumDiscountState = "premium" | "discount" | "equilibrium" | "unknown";
-export type NewsRiskLevel = "low" | "medium" | "high" | "extreme";
+export type NewsRiskLevel = "low" | "medium" | "high" | "extreme" | "unknown";
 export type ScannerTimeframe = "5m" | "15m" | "1h" | "4h";
 
 export interface KeyLevel {
@@ -46,4 +46,4 @@ export const scannerTimeframes: ScannerTimeframe[] = ["5m", "15m", "1h", "4h"];
 export const scannerMarketTypes: MarketType[] = ["Forex", "Gold", "Indices", "Crypto"];
 export const scannerBiases: MarketBias[] = ["bullish", "bearish", "neutral"];
 export const scannerSetups: ScannerSignalState[] = ["watching", "forming", "ready", "no-setup"];
-export const scannerNewsRisks: NewsRiskLevel[] = ["low", "medium", "high", "extreme"];
+export const scannerNewsRisks: NewsRiskLevel[] = ["low", "medium", "high", "extreme", "unknown"];

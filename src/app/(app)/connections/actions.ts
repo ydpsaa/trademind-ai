@@ -7,6 +7,7 @@ import type { ConnectionActionState, ConnectionMode, ConnectionStatus, Integrati
 import { hasSupabasePublicEnv } from "@/lib/supabase/config";
 import { formatSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isMarketDataConfigured } from "@/lib/market-data/config";
 
 function stringValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -116,9 +117,15 @@ export async function checkConnectionStatusAction(_state: ConnectionActionState,
       error: error ? connectionPatchMessage(error.message) : null,
     };
   } else if (providerId === "market-data") {
-    status = "not_connected";
-    mode = "safe_setup";
-    metadata = { externalCallsEnabled: false, message: "Market Data Feed is not connected." };
+    const { count, error } = await context.supabase.from("market_snapshots").select("id", { count: "exact", head: true });
+    const configured = isMarketDataConfigured();
+    status = configured && !error && (count ?? 0) > 0 ? "connected" : configured ? "fallback" : "not_connected";
+    mode = configured ? "configured" : "safe_setup";
+    metadata = {
+      marketDataService: configured ? "configured" : "not configured",
+      verifiedSnapshots: error ? 0 : count ?? 0,
+      refreshMode: "admin controlled",
+    };
   } else if (providerId === "bybit" || providerId === "okx") {
     status = "not_connected";
     mode = "read_only_future";

@@ -1,0 +1,10 @@
+import type { Strategy } from '../types';
+import { closes,integer,mean,positive,range,zScore,validateSymbol } from '../math';
+/** Fit log(A)=alpha+beta*log(B)+epsilon on prior bars only. OLS is not a cointegration test. */
+export function fitHedge(a:readonly number[],b:readonly number[]):{alpha:number;beta:number}|null{
+ if(a.length!==b.length||a.length<3)throw new Error('hedge sample invalid');const x=b.map(v=>Math.log(positive(v,'B'))),y=a.map(v=>Math.log(positive(v,'A'))),mx=mean(x),my=mean(y),v=x.reduce((s,k)=>s+(k-mx)**2,0);if(v<=1e-12)return null;const beta=x.reduce((s,k,i)=>s+(k-mx)*(y[i]-my),0)/v;return{alpha:my-beta*mx,beta};
+}
+export function pairsTrading(opts:{a:string;b:string;window?:number;entryZ?:number;exitZ?:number;stopZ?:number;gross?:number}):Strategy{
+ const a=validateSymbol(opts.a),b=validateSymbol(opts.b),n=integer(opts.window??60,'window',3),entry=positive(opts.entryZ??2,'entryZ'),exit=range(opts.exitZ??0.5,'exitZ',0,entry),stop=positive(opts.stopZ??4,'stopZ'),g=range(opts.gross??1,'gross',0,1);if(a===b||exit>=entry||stop<=entry)throw new Error('invalid pair');
+ return(m,t,prev)=>{const aa=closes(m,a,t,n+1),bb=closes(m,b,t,n+1);if(!aa||!bb)return null;const fit=fitHedge(aa.slice(0,-1),bb.slice(0,-1));if(!fit||fit.beta<=0)return{weights:{},reason:'unstable hedge'};const spread=aa.map((v,i)=>Math.log(v)-fit.alpha-fit.beta*Math.log(bb[i]));const z=zScore(spread[n],spread.slice(0,n));if(z===null)return{weights:{},reason:'zero residual variance'};const old=prev[a]??0;let d=0;let reason='pair flat';if(old>0){if(z>-exit||z===-exit||z<=-stop)reason=z<=-stop?'pair stop':'pair converged';else return {weights:prev,reason:'hold fixed hedge'};}else if(old<0){if(z<=exit||z>=stop)reason=z>=stop?'pair stop':'pair converged';else return {weights:prev,reason:'hold fixed hedge'};}else if(z<=-entry&&z>-stop){d=1;reason='long spread';}else if(z>=entry&&z<stop){d=-1;reason='short spread';}return{weights:d?{[a]:d*g/(1+fit.beta),[b]:-d*g*fit.beta/(1+fit.beta)}:{},reason};};
+}

@@ -1,0 +1,4 @@
+import type { Market } from './types';
+import { atr,closes,integer,mean,positive,sd } from './math';
+/** Transparent heuristic. Not a fitted classifier; no automatic trading selection. */
+export function marketRegime(m:Market,symbol:string,t:number,n=20){integer(n,'window',3);const a=closes(m,symbol,t,n+1);if(!a)return null;const ret=a.slice(1).map((p,i)=>Math.log(p/a[i]));const path=ret.reduce((s,x)=>s+Math.abs(x),0),net=ret.reduce((s,x)=>s+x,0),efficiency=path===0?0:Math.abs(net)/path;const vol=sd(ret),tr=atr(m,symbol,t,n)!/positive(a[n],'close');const prior=atr(m,symbol,t-n,n);const ratio=prior!==null&&prior>0?atr(m,symbol,t,n)!/prior:null;return {regime:ratio!==null&&ratio>=1.5?'expansion':efficiency>=.6?'trending':efficiency<=.25?'ranging':'mixed',direction:net>0?'up':net<0?'down':'flat',efficiency,realizedVolPerBar:vol,atrFraction:tr,atrExpansionRatio:ratio,meanReturn:mean(ret),method:'heuristic-v1' as const};}

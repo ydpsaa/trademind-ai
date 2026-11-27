@@ -45,3 +45,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Quant research build output
+/.quant-build/
+/preview/quant-lab.bundle.js

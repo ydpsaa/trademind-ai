@@ -1,0 +1,37 @@
+# DAXIS Quant Lab — интеграция v0.2.0
+
+## Фактическая база (GitHub)
+
+Проверенный `main`: `e82bc1194ca48d3345405b3d1381ae97c9abaeb0` (Add free Bybit public market data feed). Прочитаны AGENTS.md, package.json, tsconfig.json, protected layout, AppShell/Sidebar/GlassCard/StatusBadge, Backtest Lab и actions, Strategy Builder types/validation, Prop Readiness page, Market Data provider/bybit/config/instruments/sync/repository/types. Проверена рекурсивная структура Git tree: `src/lib/quant/` отсутствовал. Локальный Mac workspace, реальное состояние БД, действующие секреты, Next node_modules и опубликованный сайт не проверены. Политика среды блокирует clone и браузерную навигацию; проверка HTML выполнена в памяти Chromium. Next.js код не изменялся: AGENTS.md требует перед этим прочитать установленную документацию Next. Вся новая логика пока research-only.
+
+## Что уже готово
+
+- TypeScript core (исходный v0.1.0), `lab.ts` — адаптер валидации исследовательских параметров и CSV, результаты/снимок модели/происхождение. `provider-data.ts` — структурная нормализация строк `market_candles`, конкретное покрытие Bybit spot BTCUSDT/ETHUSDT (USDT quote), ровные интервалы 5m/15m/1h/4h, закрытые свечи, границы UTC, проверка времени получения, gaps/duplicates, никаких подстановок символа.
+- Браузерный интерфейс с 5 свечными моделями, отдельным Market Making quote sandbox, графиком/расходами, экспортом JSON, независимым prop simulator. UI не обращается к серверу, не меняет журнал и не подтверждает источники.
+- 48 технических тестов + 11 проверок браузера. Тесты провайдера используют fixtures, не реальные данные.
+
+## Применение файлов
+
+1. Открыть настоящий workspace `trademind-ai`, `git status --short`, проверить HEAD и все AGENTS.md. Сохранить незакоммиченные изменения владельца; создать новую ветку. Если работа уже имеется в отдельной GitHub-ветке, сверить blob SHA и diff до копирования.
+2. Перенести новые `src/lib/quant/`, `tests/*.test.cjs`, `tsconfig.quant.json`, `preview/` (только исходники/локальная сборка), `scripts/build-preview.cjs`, docs. Не заменить `package.json`, существующий `README.md`, стратегии, AppShell, маршруты или БД. Добавить `.quant-build/` в `.gitignore` (не перезаписывать существующие строки). Запустить команды README и штатные npm lint/build/test. Проверить `allowJs` и eslint ignores для сгенерированной сборки/скриптов; не добавлять глобальные отключения проверок.
+3. После чтения установленной Next документации сделать client-компонент `src/components/quant/QuantLab.tsx` и страницу `src/app/(app)/quant-lab/page.tsx`, в существующем protected AppShell / GlassCard / StatusBadge. Перенести UX из preview, но не вставлять HTML как unsafe innerHTML. Не открывать публичный маршрут; feature flag `ENABLE_QUANT_LAB` по умолчанию false. Добавить пункт навигации в фактически существующие desktop/mobile компоненты и ссылку из Backtest Lab. Отдельно показать Sandbox / Provider Data — Unvalidated / Not Connected. Все реальные результаты считать server-side; sandbox остаётся локальным. Отключить fake metrics, не изменять старые результаты.
+
+## Подключение уже существующего Market Data
+
+В GitHub обнаружен `src/lib/market-data/provider.ts` (server-only `fetchMarketCandles`), `bybit.ts`, `twelve-data.ts`, `sync.ts`, `repository.ts`. Хранилище уже называется `market_candles`. Не создавать новый поставщик или дублирующие таблицы. По docs `/market-scanner` администратор явно запускает sync; обычная навигация не запрашивает внешний сервис. Документация заявляет shared read-only доступ аутентифицированных пользователей; фактическую RLS и схемы проверить в тестовой БД. Для исследования использовать read-only данные, не service role на клиенте.
+
+P0 server loader: валидировать whitelist из `spotSymbols`/`intervals`, период `[startMs,endMs)` и лимит 1200 баров на актив. Проверить авторизацию `getCurrentUser()`/`supabase.auth.getUser()` через существующий server client. Из `market_candles` выбрать `provider,symbol,timeframe,opened_at,open,high,low,close,volume,is_closed,fetched_at`, провайдер bybit, символы BTCUSDT/ETHUSDT, указанный интервал, `is_closed=true`, `opened_at>=start && <end`. Чтение постраничное по каждому символу с order `opened_at`, без пропуска rows из-за лимита Supabase; зафиксировать снимок чтения или проверить хэш до/после, обрабатывать missing/duplicate/revised data. Передать только серверные строки в `normalizeStoredSpotCandles(rows, req)`. Возвращаемый статус **provider-candidate** удостоверяет структуру, а не подлинность источника. Для реального исследования нужны проверка лицензии, актуальности и полноты, снимок данных с SHA-256, точные реальные fee assumptions, minQty/lot/tick, сохранение сырого источника/версии. Политика: только spot long-only (запрет short, pairs и funding-предпосылок); контракты XAUUSDT/индексы/FX не смешивать со spot и не подменять XAUUSD. Старые свечи допустимы для исторической выборки, но не для live-сигнала.
+
+Никаких запросов к Bybit не было выполнено этим пакетом. Сам server loader и исторический pipeline не активированы, текущая доступность свечей неизвестна.
+
+## Strategy Builder и Backtest Lab
+
+Существующий `StrategyRules` ICT/SMC и normalizeStrategyRules не сохраняют произвольный QuantSpec. Добавить отдельную версионированную quant config либо проверенное discriminated union после полного аудита. Не перезаписать старые rules. Не записывать quant-результаты в `backtests` до изменения всех фильтров и типов: текущая страница считает любую запись кроме simulated real. Новая таблица `quant_backtest_runs` (предложение, не миграция) с owner ID, immutable spec, dataset hash, period, provenance, engine version, report, status, validation state, created_at; ownership RLS и проверки связей. Сохранить fail closed, отсутствие валидированных данных и вычислений при ошибке. Fills нельзя выдавать за closed trades, win rate или net R; реализовать ledger lifecycle и fee allocation прежде чем соединять со статистикой. OOS / walk-forward, benchmarks, costs, multiple tests, regime, robustness; пары — отдельная stationarity/cointegration validation. Market Making — quote/tick-replay research only.
+
+## Prop Readiness и AI
+
+В фактическом `main` есть `/prop-readiness`, `prop_readiness_profiles`, `prop_readiness_snapshots`, `prop_rule_violations`, account scope, static/trailing, timezone, торговый день, consistency, readiness_status; не создавать вторую систему профилей. Текущий UI честно показывает Estimated from Journal, closed-trade estimate. Добавить ссылку на независимый Prop Simulator, загрузить правила выбранного профиля только на сервере с user ownership; не вычислять daily breach без подтверждённого intraday equity и reset policy. Нет автообещаний pass/payout; separate simulation context. Для AI Review передавать versioned computed metrics, ограничения, происхождение, ссылки на run; числа считать математикой, не LLM. Никаких ордеров и блокировки сделок через read-only.
+
+## Release gate
+
+NO-GO для production, пока нет штатного `npm run lint`, `npm run build`, защиты маршрута, RLS negative tests, проверенных провайдерских данных, server-side tests, Playwright на настоящем приложении и изолированном Preview, regression и согласования владельца. Не менять production/supabase без отдельного gate. В текущем пакете нет live broker data и доказательства прибыли. Решения по инструментам/лимитам/формату CSV и дизайну сделаны как консервативные research defaults, не финансовая рекомендация.

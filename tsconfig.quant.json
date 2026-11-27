@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2017","module":"CommonJS","moduleResolution":"node","lib":["ES2017","DOM"],"strict":true,"noEmitOnError":true,"outDir":".quant-build","rootDir":"src/lib/quant","skipLibCheck":true},"include":["src/lib/quant/**/*.ts"]}

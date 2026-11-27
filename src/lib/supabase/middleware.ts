@@ -8,6 +8,7 @@ const protectedRoutes = [
   "/ai-analysis",
   "/market-scanner",
   "/backtest-lab",
+  "/quant-lab",
   "/strategies",
   "/signals",
   "/psychology",

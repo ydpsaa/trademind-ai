@@ -83,6 +83,9 @@ export async function fetchBybitCandles({ symbol, timeframe, outputSize = 120 }:
   if (!response.ok || payload.retCode !== 0 || !Array.isArray(payload.result?.list)) {
     throw new Error(safeProviderError(response.status, payload));
   }
+  if (payload.result.symbol !== instrument.bybit.symbol || payload.result.category !== instrument.bybit.category) {
+    throw new Error("MARKET_DATA_INVALID_RESPONSE");
+  }
 
   const fetchedAt = new Date().toISOString();
   const now = Date.now();

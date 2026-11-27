@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, Beaker, Database, FlaskConical } from "lucide-react";
+import { Database, FlaskConical } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { DeleteBacktestButton } from "@/components/backtest/BacktestActions";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -51,25 +51,10 @@ function isSandboxBacktest(backtest: BacktestRow) {
   return backtest.report_json?.engineType === "simulated" || (backtest as BacktestRow & { engine_type?: string | null }).engine_type === "simulated";
 }
 
-function SummaryCard({ label, value, icon: Icon }: { label: string; value: string; icon: typeof BarChart3 }) {
-  return (
-    <GlassCard className="p-4">
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-zinc-500">{label}</div>
-        <Icon className="h-4 w-4 text-zinc-500" />
-      </div>
-      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
-    </GlassCard>
-  );
-}
-
 export default async function BacktestLabPage({ searchParams }: BacktestLabPageProps) {
   const params = await searchParams;
   const { backtests, error, user } = await getBacktestLabData();
-  const realBacktests = backtests.filter((backtest) => !isSandboxBacktest(backtest));
   const sandboxBacktests = backtests.filter(isSandboxBacktest);
-  const latest = realBacktests[0] ?? null;
-  const netPnl = latest ? Number(latest.final_balance ?? 0) - Number(latest.initial_balance ?? 0) : 0;
 
   return (
     <AppShell title="Backtest Lab" subtitle="Test strategy logic before using it for signals or automation." user={user}>
@@ -81,13 +66,12 @@ export default async function BacktestLabPage({ searchParams }: BacktestLabPageP
             </div>
             <div>
               <h2 className="text-xl font-semibold">Backtest Lab</h2>
-              <p className="mt-1 text-sm text-zinc-500">Historical market data is required for real backtesting.</p>
+              <p className="mt-1 text-sm text-zinc-500">Run historical spot research or review your saved runs.</p>
             </div>
           </div>
-          <StatusBadge tone="neutral">Not Connected</StatusBadge>
         </div>
 
-        {params.created ? <GlassCard className="border-amber-300/20 bg-amber-400/10 p-3 text-sm text-amber-100">Sandbox backtest creation is disabled until Historical Market Data integration is connected.</GlassCard> : null}
+        {params.created ? <GlassCard className="border-amber-300/20 bg-amber-400/10 p-3 text-sm text-amber-100">Legacy Sandbox runs are separate from Quant Lab historical research.</GlassCard> : null}
         {typeof params.error === "string" ? <GlassCard className="border-rose-300/20 bg-rose-400/10 p-3 text-sm text-rose-200">{params.error}</GlassCard> : null}
         {error ? <GlassCard className="border-rose-300/20 bg-rose-400/10 p-4 text-sm text-rose-200">{error}</GlassCard> : null}
 
@@ -96,31 +80,27 @@ export default async function BacktestLabPage({ searchParams }: BacktestLabPageP
             <div className="max-w-2xl">
               <div className="flex items-center gap-2 text-sm font-semibold text-white">
                 <Database className="h-4 w-4 text-zinc-400" />
-                Historical Market Data required
+                Historical Research Engine
               </div>
-              <h3 className="mt-3 text-2xl font-semibold tracking-tight text-white">Real backtest execution is disabled.</h3>
-              <p className="mt-3 text-sm leading-6 text-zinc-500">TradeMind AI will activate strategy tests after a verified candle data provider is connected. Simulated foundation results are kept as sandbox history only.</p>
+              <h3 className="mt-3 text-2xl font-semibold tracking-tight text-white">Research BTCUSDT and ETHUSDT spot in Quant Lab</h3>
+              <p className="mt-3 text-sm leading-6 text-zinc-500">Use stored, closed Bybit candles to run a backtest, chronological holdout, or walk-forward. Quant Lab shows data coverage and applies modeled execution costs.</p>
             </div>
-            <Link href="/connections/market-data" className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/12 px-4 text-sm font-semibold text-white transition hover:bg-white/18">
-              View Market Data Setup
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/quant-lab" className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/12 px-4 text-sm font-semibold text-white transition hover:bg-white/18">
+                Open Quant Lab
+              </Link>
+              <Link href="/connections/market-data" className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 px-4 text-sm text-zinc-300 transition hover:bg-white/10">
+                Market Data Feed
+              </Link>
+            </div>
           </div>
         </GlassCard>
-
-        {latest ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <SummaryCard label="Latest Final Balance" value={currency(latest.final_balance)} icon={Database} />
-            <SummaryCard label="Latest Net PnL" value={currency(netPnl)} icon={BarChart3} />
-            <SummaryCard label="Latest Win Rate" value={`${formatNumber(latest.winrate, "0")}%`} icon={Beaker} />
-            <SummaryCard label="Latest Max Drawdown" value={`${formatNumber(latest.max_drawdown, "0")}%`} icon={FlaskConical} />
-          </div>
-        ) : null}
 
         <GlassCard className="p-4 md:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Backtest History</h2>
-              <p className="mt-1 text-sm text-zinc-500">Real results appear here after market data integration. Sandbox history is clearly labeled.</p>
+              <p className="mt-1 text-sm text-zinc-500">Legacy saved runs and their provenance. Quant Lab results stay in the current research session.</p>
             </div>
             <StatusBadge tone="neutral">{backtests.length} saved</StatusBadge>
           </div>
@@ -151,14 +131,14 @@ export default async function BacktestLabPage({ searchParams }: BacktestLabPageP
                 <tbody>
                   {backtests.map((backtest) => (
                     <tr key={backtest.id} className="rounded-xl bg-white/[0.035] transition hover:bg-white/[0.06]">
-                      <td className="rounded-l-xl px-3 py-3 text-white">{backtest.strategies?.name || backtest.report_json?.strategySnapshot.name || "Strategy deleted"}</td>
+                      <td className="rounded-l-xl px-3 py-3 text-white">{backtest.strategies?.name || backtest.report_json?.strategySnapshot?.name || "Strategy deleted"}</td>
                       <td className="px-3 py-3 text-zinc-300">{backtest.symbol}</td>
                       <td className="px-3 py-3 text-zinc-300">{backtest.timeframe}</td>
                       <td className="px-3 py-3 text-zinc-300">{backtest.total_trades ?? 0}</td>
                       <td className="px-3 py-3 text-zinc-300">{formatNumber(backtest.winrate, "0")}%</td>
                       <td className="px-3 py-3 text-zinc-300">{currency(backtest.final_balance)}</td>
                       <td className="px-3 py-3 text-zinc-300">{formatNumber(backtest.max_drawdown, "0")}%</td>
-                      <td className="px-3 py-3"><StatusBadge tone={isSandboxBacktest(backtest) ? "neutral" : "positive"}>{isSandboxBacktest(backtest) ? "Sandbox" : "Real Data"}</StatusBadge></td>
+                      <td className="px-3 py-3"><StatusBadge tone="neutral">{isSandboxBacktest(backtest) ? "Sandbox" : "Unverified"}</StatusBadge></td>
                       <td className="px-3 py-3 text-zinc-500">{formatDateTime(backtest.created_at)}</td>
                       <td className="rounded-r-xl px-3 py-3">
                         <div className="flex flex-wrap items-center gap-3">
@@ -175,8 +155,8 @@ export default async function BacktestLabPage({ searchParams }: BacktestLabPageP
             </div>
           ) : (
             <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-8 text-center">
-              <h3 className="text-base font-semibold">No real backtests yet</h3>
-              <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-zinc-500">Historical market data is required for real backtesting. Connect a data provider to activate this module.</p>
+              <h3 className="text-base font-semibold">No saved runs yet</h3>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-zinc-500">Run historical spot research or review your saved runs. Connect a data provider to activate this module.</p>
             </div>
           )}
         </GlassCard>

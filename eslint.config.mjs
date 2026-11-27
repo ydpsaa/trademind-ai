@@ -12,8 +12,14 @@ const eslintConfig = defineConfig([
     ".claude/**",
     "out/**",
     "build/**",
+    ".quant-build/**",
+    "preview/quant-lab.bundle.js",
     "next-env.d.ts",
   ]),
+  {
+    files: ["scripts/build-preview.cjs", "tests/*.test.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
 ]);
 
 export default eslintConfig;

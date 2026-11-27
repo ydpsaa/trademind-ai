@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowUpRight, FlaskConical, TestTubeDiagonal } from "lucide-react";
 import { redirect } from "next/navigation";
 import { HistoricalResearchWorkspace } from "@/components/quant/HistoricalResearchWorkspace";
-import { GlassCard } from "@/components/ui/GlassCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { historicalInputBounds, historicalMethod, historicalMinimumBars } from "@/lib/quant/historical-engine";
 import { HISTORICAL_MAX_BARS } from "@/lib/quant/historical-feed";
@@ -51,10 +50,10 @@ export default async function QuantLabPage() {
         inputBounds={historicalInputBounds}
       />
 
-      <GlassCard className="min-w-0 p-4 sm:p-5">
+      <section aria-labelledby="quant-sandbox-heading" className="glass-panel min-w-0 rounded-2xl p-4 sm:p-5">
         <div className="flex flex-wrap items-center gap-3">
           <TestTubeDiagonal aria-hidden="true" className="size-5 shrink-0 text-zinc-400" />
-          <h2 className="text-base font-semibold text-white">Sandbox scope</h2>
+          <h2 id="quant-sandbox-heading" className="text-base font-semibold text-white">Sandbox scope</h2>
           <StatusBadge tone="warning">Exploratory only</StatusBadge>
         </div>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
@@ -62,7 +61,7 @@ export default async function QuantLabPage() {
           Historical research here is limited to single-asset, long-only BTCUSDT and ETHUSDT spot runs.
           Position sizing uses available USDT. Execution and costs are modeled from candles.
         </p>
-      </GlassCard>
+      </section>
     </div>
   );
 }

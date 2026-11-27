@@ -2,7 +2,7 @@
 
 import { ChartNoAxesCombined, CircleAlert, Database, Play } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { runHistoricalResearchAction } from "@/app/(app)/quant-lab/actions";
 import {
   HistoricalResearchReport,
@@ -72,12 +72,19 @@ export function HistoricalResearchWorkspace({
     "walk-forward": `Select a preset on the preceding ${method.walkForwardTrainingBars} candles for each consecutive ${method.walkForwardTestBars}-candle evaluation.`,
   } satisfies Record<HistoricalMode, string>;
 
+  function submitResearch(event: FormEvent<HTMLFormElement>) {
+    // Dispatch with the current controls intact after React finishes the action.
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(() => action(formData));
+  }
+
   return (
     <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(20rem,0.75fr)_minmax(0,1.25fr)]">
       <GlassCard className="min-w-0 p-4 sm:p-5">
         <h2 id="research-run" className="text-lg font-semibold text-white">Configure a run</h2>
         <p className="mt-1 text-sm leading-5 text-zinc-400">Choose a strategy, date range, and execution costs.</p>
-        <form action={action} aria-labelledby="research-run" className="mt-5">
+        <form action={action} onSubmit={submitResearch} aria-labelledby="research-run" className="mt-5">
           <fieldset disabled={pending} className="grid min-w-0 gap-4 disabled:opacity-70" aria-busy={pending}>
             <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
               <label className={labelClass}>

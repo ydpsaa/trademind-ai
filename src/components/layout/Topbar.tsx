@@ -28,6 +28,7 @@ const pageChrome: Array<{ test: (pathname: string) => boolean; title: string; su
   { test: (pathname) => pathname.startsWith("/calendar"), title: "Economic Calendar", subtitle: "Track high-impact macro events that may affect Forex, Gold, Crypto and Indices." },
   { test: (pathname) => pathname.startsWith("/backtest-lab/"), title: "Backtest Detail", subtitle: "Saved backtest report." },
   { test: (pathname) => pathname.startsWith("/backtest-lab"), title: "Backtest Lab", subtitle: "Test strategy logic before using it for signals or automation." },
+  { test: (pathname) => pathname === "/quant-lab", title: "Quant Lab", subtitle: "Historical research on closed Bybit spot candles." },
   { test: (pathname) => pathname.startsWith("/market-scanner"), title: "Market Scanner", subtitle: "Market structure will activate after Market Data Feed integration." },
   { test: (pathname) => pathname.startsWith("/signals/"), title: "Signal Detail", subtitle: "Signal report." },
   { test: (pathname) => pathname.startsWith("/signals"), title: "Signals", subtitle: "Review setup ideas after Market Data Feed and Strategy validation are connected." },
@@ -63,9 +64,11 @@ export function Topbar({ title, subtitle, accountSelector }: TopbarProps) {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {accountSelector}
-          <button className="inline-flex h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm text-white shadow-inner shadow-white/5">
-            May 12 - May 19 <CalendarDays className="h-4 w-4 text-zinc-400" />
-          </button>
+          {pathname === "/quant-lab" ? null : (
+            <button className="inline-flex h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm text-white shadow-inner shadow-white/5">
+              May 12 - May 19 <CalendarDays className="h-4 w-4 text-zinc-400" />
+            </button>
+          )}
           <button className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/[0.06]" aria-label="Notifications">
             <Bell className="h-4 w-4" />
           </button>
